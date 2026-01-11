@@ -26,7 +26,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #007BFF, #0056b3);
@@ -464,6 +464,42 @@
             visibility: visible;
             transform: scale(1);
         }
+        #scroll-to-bottom-btn {
+            display: none;
+            position: fixed;
+            bottom: 115px;
+            right: 20px;
+            z-index: 998;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e0e0e0;
+            outline: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.8);
+        }
+        
+        #scroll-to-bottom-btn svg {
+            color: #0056b3;
+            width: 24px;
+            height: 24px;
+        }
+        
+        #scroll-to-bottom-btn.show {
+            display: flex;
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+        
         .ledger-entry {
             -webkit-user-select: none;
             -ms-user-select: none;
@@ -501,17 +537,6 @@
             transform: rotate(-90deg);
         }
         
-        .card-body.collapsible {
-            max-height: 1000px; /* একটি বড় মান দিন */
-            overflow: hidden;
-            transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out;
-        }
-        
-        .card-body.collapsible.collapsed {
-            max-height: 0;
-            padding-top: 0;
-            padding-bottom: 0;
-        }
   /* User Manual Modal Styles */
         #manualModal .modal-content {
             max-width: 800px; /* মডালটি চওড়া হবে */
@@ -561,7 +586,122 @@
             font-family: monospace;
             color: #c82333;
         }
-                
+        .card-body.collapsible.collapsed {
+            max-height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            overflow: hidden;
+            visibility: hidden;
+            transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out, visibility 0s linear 0.4s;
+        }
+        
+        .card-body.collapsible {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out, visibility 0s;
+            visibility: visible;
+        }
+        
+        .sortable-list {
+            list-style: none;
+            padding: 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 15px;
+            background-color: #f8f9fa;
+            overflow-y: auto;
+            max-height: 100vh;
+        }
+        @media (min-width: 768px) {
+            .sortable-list {
+                max-height: 65vh;
+            }
+        }        
+        .sortable-list li {
+            padding: 0;
+            background-color: #fff;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .sortable-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .drag-handle {
+            padding: 8px 15px;
+            cursor: grab;
+            color: #adb5bd;
+            font-size: 20px;
+        }
+        
+        .section-text {
+            padding: 8px 15px;
+            flex-grow: 1;
+        }
+        
+        .sortable-list li.dragging {
+            opacity: 0.7;
+            background: #d0eaff;
+        }
+        .custom-search-container {
+            position: relative;
+        }
+        
+        .custom-search-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 13px;
+        }
+        
+        .custom-search-results {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1052; /* অত্যন্ত গুরুত্বপূর্ণ */
+            box-shadow: var(--shadow);
+        }
+        
+        .custom-search-results.show {
+            display: block;
+        }
+        
+        .custom-search-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f1f1;
+        }
+        
+        .custom-search-item:last-child {
+            border-bottom: none;
+        }
+        
+        .custom-search-item:hover {
+            background-color: #f1f3f5;
+        }
+        
+        .custom-search-item small {
+            color: #6c757d;
+            display: block;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+        
     </style>
 </head>
 <body>
@@ -646,6 +786,87 @@
         <!-- Reports & Settings Page -->
         <div id="reports-page" class="page">
             <div class="container">
+        
+                <!-- ১. ব্যবহারবিধি -->
+                <div class="card">
+                    <h2>ব্যবহারবিধি</h2>
+                    <p>অ্যাপটির সকল ফিচার এবং ব্যবহার সম্পর্কে জানতে নিচের বাটনে ক্লিক করুন।</p>
+                    <button class="action-btn" style="background-color: #17a2b8; width: 100%;" onclick="openManualModal()">
+                        ইউজার ম্যানুয়াল দেখুন 📖
+                    </button>
+                </div>
+        
+                <!-- ২. রিপোর্ট ডাউনলোড -->
+                <div class="card">
+                    <h2>রিপোর্ট ডাউনলোড</h2>
+                    <p>মাসিক বাজেট, ব্যবহারকারীর রিপোর্ট এবং অন্যান্য তথ্য ডাউনলোড করুন।</p>
+                    <button class="action-btn" style="background-color: var(--success-color);" onclick="openDownloadModal()">
+                        ডাউনলোড করুন 📥
+                    </button>
+                </div>
+        
+                <!-- ৩. পূর্ববর্তী রিপোর্ট আর্কাইভ -->
+                <div class="card">
+                    <h2>পূর্ববর্তী রিপোর্ট আর্কাইভ</h2>
+                    <p>বিগত মাসের রিপোর্ট পুনরায় ডাউনলোড করুন। মাসের নামের উপর ক্লিক করে পুরনো চাহিদা এডিট বা পুনরায় জেনারেট করা যাবে।</p>
+                    <div id="archived-reports-list"></div>
+                </div>
+        
+                <!-- ৪. সেকশন ক্রম সাজান -->
+                <div class="card">
+                    <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
+                        <h2>সেকশন ক্রম সাজান</h2>
+                        <span class="toggle-icon collapsed">▼</span>
+                    </div>
+                    <div class="card-body collapsible collapsed" style="padding-bottom: 15px;">
+                        <p>নিচের তালিকাটি ড্র্যাগ করে আপনার পছন্দ মতো সেকশনের ক্রম সাজান এবং সেভ করুন। এই ক্রম সব জায়গায় প্রযোজ্য হবে।</p>
+                        <ul id="sortable-sections" class="sortable-list">
+                        </ul>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                            <button id="resetSectionOrderBtn" class="action-btn" style="background-color: #6c757d;">
+                                ডিফল্ট 🔄
+                            </button>
+                            <button id="saveSectionOrderBtn" class="action-btn" style="background-color: #28a745;">
+                                সেভ করুন 💾
+                            </button>
+                        </div>
+                    </div>
+                </div>
+        
+                <!-- ৫. আইটেম ক্রম সাজান -->
+                <div class="card">
+                    <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
+                        <h2>আইটেম ক্রম সাজান</h2>
+                        <span class="toggle-icon collapsed">▼</span>
+                    </div>
+                    <div class="card-body collapsible collapsed" style="padding-bottom: 15px;">
+                        <p>প্রথমে একটি সেকশন বাছাই করুন, তারপর তালিকাটি ড্র্যাগ করে আইটেমের ক্রম সাজান এবং সেভ করুন।</p>
+                        <div class="form-group" style="padding: 0; box-shadow: none; margin-bottom: 15px;">
+                            <select id="item-sort-section-select" onchange="initializeItemSortableList()"></select>
+                        </div>
+                        <ul id="sortable-items" class="sortable-list"></ul>
+                        <div id="item-sort-buttons-container" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                            <button id="resetItemOrderBtn" class="action-btn" style="background-color: #6c757d;">ডিফল্ট 🔄</button>
+                            <button id="saveItemOrderBtn" class="action-btn" style="background-color: #28a745;">সেভ করুন 💾</button>
+                        </div>
+                    </div>
+                </div>
+        
+                <!-- ৬. স্টক লেভেল নিয়ম -->
+                <div class="card">
+                    <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
+                        <h2>স্টক লেভেল নিয়ম</h2>
+                        <span class="toggle-icon collapsed">▼</span>
+                    </div>
+                    <div class="card-body collapsible collapsed" style="padding-bottom: 15px;">
+                        <p>এখানে আপনি ডিফল্ট স্টক লেভেলের নিয়ম পরিবর্তন করতে পারবেন এবং নির্দিষ্ট আইটেমের জন্য বিশেষ নিয়ম তৈরি করতে পারবেন।</p>
+                        <button class="action-btn" style="background-color: #007bff; width: 100%;" onclick="openRuleManagementModal()">
+                            নিয়ম ম্যানেজ করুন ⚙️
+                        </button>
+                    </div>
+                </div>
+        
+                <!-- ৭. ব্যবহারকারী ম্যানেজমেন্ট -->
                 <div class="card">
                     <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
                         <h2>ব্যবহারকারী ম্যানেজমেন্ট</h2>
@@ -659,19 +880,8 @@
                         <div id="user-list" style="margin-top: 15px;"></div>
                     </div>
                 </div>
-                <div class="card">
-                    <h2>রিপোর্ট ডাউনলোড</h2>
-                    <p>মাসিক বাজেট, ব্যবহারকারীর রিপোর্ট এবং অন্যান্য তথ্য ডাউনলোড করুন।</p>
-                    <button class="action-btn" style="background-color: var(--success-color);" onclick="openDownloadModal()">
-                        ডাউনলোড করুন 📥
-                    </button>
-                </div>
         
-                <div class="card">
-                    <h2>পূর্ববর্তী রিপোর্ট আর্কাইভ</h2>
-                    <p>বিগত মাসের রিপোর্ট পুনরায় ডাউনলোড করুন। মাসের নামের উপর ক্লিক করে পুরনো চাহিদা এডিট বা পুনরায় জেনারেট করা যাবে।</p>
-                    <div id="archived-reports-list"></div>
-                </div>
+                <!-- ৮. ডেটা ম্যানেজমেন্ট -->
                 <div class="card">
                     <h2>ডেটা ম্যানেজমেন্ট</h2>
                     <p>গুরুত্বপূর্ণ ডেটা ব্যাকআপ নিন, রিস্টোর করুন অথবা অ্যাপ রিসেট করুন।</p>
@@ -687,16 +897,10 @@
                         সম্পূর্ণ রিসেট করুন
                     </button>
                 </div>
-                <div class="card">
-                    <h2>ব্যবহারবিধি</h2>
-                    <p>অ্যাপটির সকল ফিচার এবং ব্যবহার সম্পর্কে জানতে নিচের বাটনে ক্লিক করুন।</p>
-                    <button class="action-btn" style="background-color: #17a2b8; width: 100%;" onclick="openManualModal()">
-                        ইউজার ম্যানুয়াল দেখুন 📖
-                    </button>
-                </div>                
+        
             </div>
         </div>
-    
+
         <!-- New Modals for Reports -->
         <!-- Requisition Input Modal -->
         <div id="requisitionInputModal" class="modal-overlay">
@@ -791,6 +995,7 @@
                         <select id="pi-user-main"></select>
                     </div>
                     <div id="provide-items-container">
+                        <!-- নতুন আইটেম ফর্মগুলো এখানে যুক্ত হবে -->
                     </div>
                     <div class="form-group" style="background: var(--level-low-bg); display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 10px; margin-top: 15px;">
                         <input type="checkbox" id="pi-is-urgent-main" style="width: auto;">
@@ -893,6 +1098,12 @@
             <polyline points="18 15 12 9 6 15"></polyline>
         </svg>
     </button>
+    <button id="scroll-to-bottom-btn" title="নিচে যান">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+    </button>
+    
     <div id="customConfirmModal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="max-width: 360px; text-align: center;">
             <div class="modal-header" style="padding: 10px 15px;">
@@ -925,7 +1136,7 @@
             </div>
         </div>
     </div>
-<!-- User Manual Modal -->
+    <!-- User Manual Modal -->
     <div id="manualModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -987,7 +1198,77 @@
             </div>
         </div>
     </div>
- 
+    <!-- Stock Level Rule Management Modal -->
+    <div id="ruleManagementModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>স্টক লেভেল নিয়ম ম্যানেজ করুন</h2>
+                <button class="close-btn" onclick="closeModal('ruleManagementModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Rules List -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <div class="card-header" style="padding: 10px 15px;">
+                        <h3 style="margin:0; font-size: 15px;">বিদ্যমান নিয়মাবলী</h3>
+                    </div>
+                    <div id="existing-rules-container" style="padding: 15px; max-height: 250px; overflow-y: auto;">
+                        <!-- Rules will be dynamically loaded here -->
+                    </div>
+                    <div style="padding: 0 15px 15px 15px; border-top: 1px solid #e9ecef;">
+                        <button onclick="resetDefaultRules()" class="action-btn" style="background-color: var(--warning-color); color: var(--dark-text); width: 100%; margin-top: 10px;">
+                            🔄 ডিফল্ট
+                        </button>
+                    </div>
+                    
+                </div>
+    
+                <!-- New Custom Rule Form -->
+                <div class="card">
+                     <div class="card-header" style="padding: 10px 15px;">
+                        <h3 style="margin:0; font-size: 15px;">নতুন বিশেষ নিয়ম যোগ করুন (নির্দিষ্ট আইটেমের জন্য)</h3>
+                    </div>
+                    <form id="new-rule-form" onsubmit="addNewStockRule(event)" style="padding: 15px;">
+                        <div class="form-group">
+                            <label>শর্ত: যদি আইটেমের নামে এই শব্দটি থাকে</label>
+                            <input type="text" id="rule-keyword" placeholder="যেমন: belt fusing, ampere tube" required>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                            <div class="form-group" style="padding:0; box-shadow:none;">
+                                <label>Low Level</label>
+                                <input type="number" id="rule-low" step="any" required>
+                            </div>
+                            <div class="form-group" style="padding:0; box-shadow:none;">
+                                <label>Very Low Level</label>
+                                <input type="number" id="rule-very-low" step="any" required>
+                            </div>
+                            <div class="form-group" style="padding:0; box-shadow:none;">
+                                <label>Critical Level</label>
+                                <input type="number" id="rule-critical" step="any" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="action-btn" style="background: var(--success-color); width: 100%; margin-top: 10px;">💾 বিশেষ নিয়ম সেভ করুন</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Force Update Modal -->
+    <div id="forceUpdateModal" class="modal-overlay" style="display: none; z-index: 9999; background-color: rgba(0, 0, 0, 0.85);">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 20px;">
+            <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+                <h2 style="width: 100%; text-align: center; color: var(--warning-color);">আপডেট প্রয়োজন</h2>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 15px; line-height: 1.6; margin-bottom: 25px;">
+                    অ্যাপের একটি নতুন এবং উন্নত সংস্করণ পাওয়া গেছে। সেরা অভিজ্ঞতা পেতে, অনুগ্রহ করে অ্যাপটি আপডেট করুন।
+                </p>
+                <button id="update-now-btn" class="action-btn" style="background: var(--success-color); width: 100%; font-size: 16px;">
+                    এখন আপডেট করুন 🚀
+                </button>
+            </div>
+        </div>
+    </div>
+     
     <script>
         // --- Global State & Constants ---
         const firebaseConfig = {
@@ -1013,6 +1294,9 @@
         let tempRequisitionData = {};
         let debounceTimer;
         let unsubscribeListeners = [];
+        let sectionOrder = []; 
+        let sortableInstance = null;
+        let itemOrders = {};
         const ADMIN_EMAILS = [
             "engr.mdbelal@gmail.com", 
             "shohan.eng@gmail.com", 
@@ -1020,7 +1304,28 @@
         ];
         const CENTRAL_DB_ID = "grgl_central_store";
         const SECURITY_PIN = "0000";
-        let resolvePinPromise = null;        
+        let resolvePinPromise = null;   
+        const CURRENT_APP_VERSION = "2.1.0";
+        let onlineAppVersion = null;
+
+        const stockLevels = {
+            "পিস": { low: 8, veryLow: 5, critical: 2 },
+            "টি": { low: 8, veryLow: 5, critical: 2 },
+            "জোড়া": { low: 4, veryLow: 2, critical: 1 },
+            "সেট": { low: 5, veryLow: 3, critical: 1 },
+            "প্যাকেট": { low: 5, veryLow: 3, critical: 1 },
+            "বক্স": { low: 1, veryLow: 0.5, critical: 0 },
+            "লিটার": { low: 2, veryLow: 1, critical: 0.5 },
+            "গ্রাম": { low: 200, veryLow: 100, critical: 50 },
+            "মিটার": { low: 8, veryLow: 5, critical: 2 },
+            "ফিট": { low: 7, veryLow: 5, critical: 2 },
+            "কয়েল": { low: 2, veryLow: 1, critical: 0.5 },
+            "রোল": { low: 2, veryLow: 1, critical: 0 },
+            "ডজন": { low: 2, veryLow: 1, critical: 0.5 },
+            "default": { low: 7, veryLow: 5, critical: 3 }
+        };        
+        const originalStockLevels = JSON.parse(JSON.stringify(stockLevels));
+        let stockLevelRules = []; 
         function getDbPath() {
             const user = auth.currentUser;
             if (!user) return null;
@@ -1031,13 +1336,13 @@
         }
         
         let currentUser = null;
-        const LEVEL_LOW = 7, LEVEL_VERY_LOW = 5, LEVEL_CRITICAL = 3;
         const ITEMS_PER_PAGE = 5;
         let activeItemId = null;
         let ledgerDisplayCount = 5;
         let expandedSections = {};
         let scrollPosition = 0;
         let itemToHighlight = null;
+        let slowScrollAnimationId = null;
         // --- Helper Functions ---
         const toBengaliNumber = (enStr) => {
             if (typeof enStr !== 'string' && typeof enStr !== 'number') return enStr;
@@ -1261,8 +1566,7 @@
                     'packet', 'প্যাকেট', 
                     'dozen', 'dzn', 'ডজন', 
                     'pair', 'জোড়া',
-                    'roll', 'রোল',
-                    'عدد'
+                    'roll', 'রোল'
                 ];
         
                 if (integerUnits.includes(unitValue)) {
@@ -1287,42 +1591,80 @@
         
             const collections = ['sections', 'items', 'app_users', 'ledger', 'archivedReports'];
             const stateArrays = {
-                sections: (data) => { sections = data; renderInventoryPage(); localStorage.setItem('sections', JSON.stringify(data)); },
-                items: (data) => { allItems = data; renderInventoryPage(); updateSlidingNotifications(); localStorage.setItem('items', JSON.stringify(data)); },
-                app_users: (data) => { users = data; renderUsersPage(); localStorage.setItem('app_users', JSON.stringify(data)); },
-                ledger: (data) => { ledger = data; localStorage.setItem('ledger', JSON.stringify(data)); },
-                archivedReports: (data) => { archivedReports = data; renderArchivedReports(); localStorage.setItem('archivedReports', JSON.stringify(data)); }
+                sections: (data) => {
+                    sections = data;
+                    initializeSortableList();
+                    populateItemSortSectionDropdown();
+                    renderInventoryPage();
+                    localStorage.setItem('sections', JSON.stringify(data));
+                },
+                items: (data) => {
+                    allItems = data;
+                    renderInventoryPage();
+                    updateSlidingNotifications();
+                    localStorage.setItem('items', JSON.stringify(data));
+                },
+                app_users: (data) => {
+                    users = data;
+                    renderUsersPage();
+                    localStorage.setItem('app_users', JSON.stringify(data));
+                },
+                ledger: (data) => {
+                    ledger = data;
+                    localStorage.setItem('ledger', JSON.stringify(data));
+                },
+                archivedReports: (data) => {
+                    archivedReports = data;
+                    renderArchivedReports();
+                    localStorage.setItem('archivedReports', JSON.stringify(data));
+                }
+            };
+        
+            const setupListeners = () => {
+                collections.forEach(col => {
+                    const unsubscribe = dbPath.collection(col).onSnapshot((snapshot) => {
+                        const dataArray = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        stateArrays[col](dataArray);
+                    });
+                    unsubscribeListeners.push(unsubscribe);
+                });
+        
+                const tempReqUnsubscribe = dbPath.collection('app_state').doc('temp_requisition').onSnapshot((doc) => {
+                    const data = doc.data() || {};
+                    localStorage.setItem('tempRequisition', JSON.stringify(data));
+                    const reqModal = document.getElementById('requisitionInputModal');
+                    if (reqModal && reqModal.classList.contains('show')) {
+                        const inputs = reqModal.querySelectorAll('.req-quantity-input');
+                        inputs.forEach(input => {
+                            const row = input.closest('tr');
+                            if (row) {
+                                const itemId = row.dataset.itemId;
+                                input.value = data[itemId] || '';
+                            }
+                        });
+                    }
+                });
+                unsubscribeListeners.push(tempReqUnsubscribe);
+        
+                const settingsUnsubscribe = dbPath.collection('app_state').doc('settings').onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const settingsData = doc.data();
+                        if (settingsData.sectionOrder) {
+                            sectionOrder = settingsData.sectionOrder;
+                            localStorage.setItem('sectionOrder', JSON.stringify(sectionOrder));
+                        }
+                        if (settingsData.itemOrders) {
+                            itemOrders = settingsData.itemOrders;
+                            localStorage.setItem('itemOrders', JSON.stringify(itemOrders));
+                        }
+                        populateItemSortSectionDropdown();
+                        renderInventoryPage();
+                    }
+                });
+                unsubscribeListeners.push(settingsUnsubscribe);
             };
         
             dbPath.get().then(docSnapshot => {
-                const setupListeners = () => {
-                    collections.forEach(col => {
-                        const unsubscribe = dbPath.collection(col).onSnapshot((snapshot) => {
-                            const dataArray = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                            stateArrays[col](dataArray);
-                        });
-                        unsubscribeListeners.push(unsubscribe);
-                    });
-        
-                    const tempReqUnsubscribe = dbPath.collection('app_state').doc('temp_requisition').onSnapshot((doc) => {
-                        const data = doc.data() || {};
-                        localStorage.setItem('tempRequisition', JSON.stringify(data));
-                        
-                        const reqModal = document.getElementById('requisitionInputModal');
-                        if (reqModal && reqModal.classList.contains('show')) {
-                            const inputs = reqModal.querySelectorAll('.req-quantity-input');
-                            inputs.forEach(input => {
-                                const row = input.closest('tr');
-                                if (row) {
-                                    const itemId = row.dataset.itemId;
-                                    input.value = data[itemId] || '';
-                                }
-                            });
-                        }
-                    });
-                    unsubscribeListeners.push(tempReqUnsubscribe);
-                };
-        
                 if (!docSnapshot.exists) {
                     dbPath.set({ createdAt: new Date().toISOString() }).then(setupListeners);
                 } else {
@@ -2139,29 +2481,8 @@
             return sortMap[sectionName] || defaultSort;
         };
 
-        const getSectionOrder = () => {
-            return [
-                "Switch,Socket,Plug Items",
-                "Light Items",    
-                "Controlling Device (Automation)",
-                "Cutting & Special Machine Parts",
-                "Circuit Breaker Items",
-                "Cable",
-                "Motor Rewinding",
-                "Bearing Items",
-                "Motor Accessories",
-                "Capacitor Items",
-                "Wiring Items",
-                "Electronics",
-                "Battery Items",
-                "Air Fittings",
-                "Steam Line Fittings",
-                "Hand Tools"
-            ];
-        };
-
-        const sortSections = (sections, searchTerm) => {
-            const customOrder = getSectionOrder();
+        function sortSections(sections, searchTerm) {
+            const customOrder = sectionOrder;
             
             return [...sections].sort((a, b) => {
                 if (searchTerm) {
@@ -2173,14 +2494,398 @@
                 const indexA = customOrder.indexOf(a.name);
                 const indexB = customOrder.indexOf(b.name);
         
-                if (indexA === -1) return 1;
-                if (indexB === -1) return -1;
+                if (indexA !== -1 && indexB !== -1) {
+                    return indexA - indexB;
+                }
+                if (indexA !== -1) return -1;
+                if (indexB !== -1) return 1;
         
-                return indexA - indexB;
+                return a.name.localeCompare(b.name);
             });
-        };
+        }
 
-        function renderInventoryPage() {
+        async function resetSectionOrderToDefault() {
+            if (!confirm("আপনি কি নিশ্চিত যে সেকশনের ক্রম ডিফল্ট (A-Z) অবস্থায় ফিরিয়ে আনতে চান?")) {
+                return;
+            }
+        
+            localStorage.removeItem('sectionOrder');
+            itemOrders = {};
+            localStorage.removeItem('itemOrders');
+        
+            const allSectionNames = [...new Set(sections.map(s => s.name))];
+            sectionOrder = allSectionNames.sort((a, b) => a.localeCompare(b));
+            
+            renderSortableList();
+            populateItemSortSectionDropdown();
+            
+            showToast('সেকশনের ক্রম ডিফল্ট অবস্থায় আনা হয়েছে। পরিবর্তনটি স্থায়ী করতে "সেভ করুন" বাটনে ক্লিক করুন।', 'warning');
+        }
+
+        function initializeSortableList() {
+            const sortableList = document.getElementById('sortable-sections');
+            if (!sortableList) return;
+        
+            const savedOrder = JSON.parse(localStorage.getItem('sectionOrder')) || [];
+            const allSectionNames = [...new Set(sections.map(s => s.name))];
+        
+            if (savedOrder.length > 0 && savedOrder.every(name => allSectionNames.includes(name)) && savedOrder.length === allSectionNames.length) {
+                sectionOrder = savedOrder;
+            } else {
+                sectionOrder = allSectionNames.sort((a, b) => a.localeCompare(b));
+            }
+            
+            renderSortableList();
+        
+            if (sortableInstance) {
+                sortableInstance.destroy();
+            }
+            sortableInstance = new Sortable(sortableList, {
+                animation: 150,
+                ghostClass: 'dragging',
+                handle: '.drag-handle'
+            });
+        
+            const saveBtn = document.getElementById('saveSectionOrderBtn');
+            const resetBtn = document.getElementById('resetSectionOrderBtn');
+        
+            if (saveBtn) {
+                saveBtn.removeEventListener('click', saveSectionOrder);
+                saveBtn.addEventListener('click', saveSectionOrder);
+            }
+        
+            if (resetBtn) {
+                resetBtn.removeEventListener('click', resetSectionOrderToDefault);
+                resetBtn.addEventListener('click', resetSectionOrderToDefault);
+            }
+        }
+
+        function renderSortableList() {
+            const sortableList = document.getElementById('sortable-sections');
+            if (!sortableList) return;
+            
+            sortableList.innerHTML = '';
+            sectionOrder.forEach(sectionName => {
+                const li = document.createElement('li');
+                li.dataset.section = sectionName;
+                li.innerHTML = `
+                    <span class="drag-handle">≡</span>
+                    <span class="section-text">${sectionName}</span>
+                `;
+                sortableList.appendChild(li);
+            });
+        }
+
+        async function saveSectionOrder() {
+            const sortableList = document.getElementById('sortable-sections');
+            if (!sortableList) return;
+        
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            const newOrder = Array.from(sortableList.getElementsByTagName('li')).map(li => li.dataset.section);
+            
+            sectionOrder = newOrder;
+            localStorage.setItem('sectionOrder', JSON.stringify(sectionOrder));
+            
+            const dbPath = getDbPath();
+            if (auth.currentUser && dbPath) {
+                const userSettingsRef = db.collection('inventories').doc(dbPath.id).collection('app_state').doc('settings');
+                await userSettingsRef.set({ sectionOrder: newOrder }, { merge: true });
+            }
+        
+            showToast('সেকশনের নতুন ক্রম সফলভাবে সেভ করা হয়েছে!');
+            renderInventoryPage();
+            populateItemSortSectionDropdown();
+        }
+
+        function initializeItemSortableList() {
+            const sectionSelect = document.getElementById('item-sort-section-select');
+            const selectedSection = sectionSelect.value;
+            const sortableList = document.getElementById('sortable-items');
+            const buttonsContainer = document.getElementById('item-sort-buttons-container');
+            let itemSortableInstance = null;
+        
+            sortableList.innerHTML = '';
+        
+            if (!selectedSection) {
+                buttonsContainer.style.display = 'none';
+                return;
+            }
+        
+            buttonsContainer.style.display = 'grid';
+            
+            let itemsInSection = allItems.filter(item => item.section === selectedSection);
+            const customOrder = itemOrders[selectedSection] || [];
+            const defaultSortFunc = masterSortFunction(selectedSection);
+        
+            if (customOrder.length > 0) {
+                itemsInSection.sort((a, b) => {
+                    const indexA = customOrder.indexOf(a.id);
+                    const indexB = customOrder.indexOf(b.id);
+                    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                    if (indexA !== -1) return -1;
+                    if (indexB !== -1) return 1;
+                    return defaultSortFunc(a, b);
+                });
+            } else {
+                itemsInSection.sort(defaultSortFunc);
+            }
+        
+            itemsInSection.forEach(item => {
+                const li = document.createElement('li');
+                li.dataset.itemId = item.id;
+                li.innerHTML = `<span class="drag-handle">≡</span><span class="section-text">${item.name}</span>`;
+                sortableList.appendChild(li);
+            });
+        
+            if (itemSortableInstance) {
+                itemSortableInstance.destroy();
+            }
+            itemSortableInstance = new Sortable(sortableList, {
+                animation: 150,
+                ghostClass: 'dragging',
+                handle: '.drag-handle'
+            });
+        
+            document.getElementById('saveItemOrderBtn').onclick = saveItemOrder;
+            document.getElementById('resetItemOrderBtn').onclick = resetItemOrderToDefault;
+        }
+        
+        function populateItemSortSectionDropdown() {
+            const sectionSelect = document.getElementById('item-sort-section-select');
+            if (!sectionSelect) return;
+        
+            const options = sectionOrder.map(name => `<option value="${name}">${name}</option>`).join('');
+            sectionSelect.innerHTML = '<option value="">-- সেকশন বাছাই করুন --</option>' + options;
+            
+            initializeItemSortableList();
+        }
+        
+        async function saveItemOrder() {
+            const sectionSelect = document.getElementById('item-sort-section-select');
+            const selectedSection = sectionSelect.value;
+            if (!selectedSection) return;
+        
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            const sortableList = document.getElementById('sortable-items');
+            const newOrder = Array.from(sortableList.getElementsByTagName('li')).map(li => li.dataset.itemId);
+        
+            itemOrders[selectedSection] = newOrder;
+            localStorage.setItem('itemOrders', JSON.stringify(itemOrders));
+        
+            const dbPath = getDbPath();
+            if (auth.currentUser && dbPath) {
+                const settingsRef = dbPath.collection('app_state').doc('settings');
+                await settingsRef.set({ itemOrders: itemOrders }, { merge: true });
+            }
+        
+            showToast(`'${selectedSection}' সেকশনের ক্রম সেভ করা হয়েছে!`);
+            renderInventoryPage();
+        }
+        // --- Stock Level Rule Management Functions ---
+        
+        async function openRuleManagementModal() {
+            await loadRules();
+            renderStockRules();
+            openModal('ruleManagementModal');
+        }
+        
+        async function loadRules() {
+            const dbPath = getDbPath();
+            if (navigator.onLine && dbPath) {
+                try {
+                    const doc = await dbPath.collection('app_state').doc('stock_rules').get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (data.default_levels) {
+                            Object.assign(stockLevels, data.default_levels);
+                        }
+                        stockLevelRules = data.custom_rules || [];
+                        localStorage.setItem('stockLevelRules', JSON.stringify(stockLevelRules));
+                        localStorage.setItem('stockLevels', JSON.stringify(stockLevels));
+                    }
+                } catch (error) {
+                    console.error("Error fetching stock rules:", error);
+                }
+            } else {
+                const localDefault = JSON.parse(localStorage.getItem('stockLevels'));
+                if (localDefault) Object.assign(stockLevels, localDefault);
+                stockLevelRules = JSON.parse(localStorage.getItem('stockLevelRules') || '[]');
+            }
+        }
+        
+        function renderStockRules() {
+            const container = document.getElementById('existing-rules-container');
+            container.innerHTML = '';
+        
+            for (const unit in stockLevels) {
+                const rule = stockLevels[unit];
+                let description = `<strong>ইউনিট:</strong> ${unit} (ডিফল্ট)`;
+                description += ` &rarr; <strong>Low:</strong> ${rule.low}, <strong>Very Low:</strong> ${rule.veryLow}, <strong>Critical:</strong> ${rule.critical}`;
+        
+                const ruleDiv = document.createElement('div');
+                ruleDiv.className = 'ledger-entry';
+                ruleDiv.style.padding = '8px 12px';
+                ruleDiv.style.background = '#f8f9fa';
+                ruleDiv.innerHTML = `
+                    <span class="ledger-desc" style="font-size: 12px;">${description}</span>
+                    <button class="delete-btn" onclick="editDefaultRule('${unit}')" title="ডিফল্ট নিয়ম এডিট করুন">✏️</button>
+                `;
+                container.appendChild(ruleDiv);
+            }
+        
+            stockLevelRules.forEach((rule, index) => {
+                let description = `<strong>বিশেষ নিয়ম:</strong> নামে <strong>"${rule.keyword}"</strong> থাকলে`;
+                description += ` &rarr; <strong>Low:</strong> ${rule.levels.low}, <strong>Very Low:</strong> ${rule.levels.veryLow}, <strong>Critical:</strong> ${rule.levels.critical}`;
+        
+                const ruleDiv = document.createElement('div');
+                ruleDiv.className = 'ledger-entry';
+                ruleDiv.style.padding = '8px 12px';
+                ruleDiv.style.background = 'var(--level-low-bg)';
+                ruleDiv.innerHTML = `
+                    <span class="ledger-desc" style="font-size: 12px;">${description}</span>
+                    <button class="delete-btn" onclick="deleteStockRule(${index})" title="বিশেষ নিয়ম ডিলিট করুন">🗑️</button>
+                `;
+                container.appendChild(ruleDiv);
+            });
+        }
+        
+        async function editDefaultRule(unit) {
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            const currentRule = stockLevels[unit];
+            const newLow = prompt(`'${unit}' ইউনিটের জন্য নতুন 'Low' লেভেল দিন:`, currentRule.low);
+            if (newLow === null) return;
+            const newVeryLow = prompt(`'${unit}' ইউনিটের জন্য নতুন 'Very Low' লেভেল দিন:`, currentRule.veryLow);
+            if (newVeryLow === null) return;
+            const newCritical = prompt(`'${unit}' ইউনিটের জন্য নতুন 'Critical' লেভেল দিন:`, currentRule.critical);
+            if (newCritical === null) return;
+        
+            const low = parseFloat(newLow);
+            const veryLow = parseFloat(newVeryLow);
+            const critical = parseFloat(newCritical);
+        
+            if (isNaN(low) || isNaN(veryLow) || isNaN(critical)) {
+                return showToast('অনুগ্রহ করে সঠিক সংখ্যা দিন।', 'error');
+            }
+        
+            stockLevels[unit] = { low, veryLow, critical };
+            await saveRulesToDB();
+            showToast(`'${unit}' ইউনিটের ডিফল্ট নিয়ম আপডেট করা হয়েছে।`);
+            renderStockRules();
+        }
+        
+        async function addNewStockRule(event) {
+            event.preventDefault();
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            const newRule = {
+                keyword: document.getElementById('rule-keyword').value.trim().toLowerCase(),
+                levels: {
+                    low: parseFloat(document.getElementById('rule-low').value),
+                    veryLow: parseFloat(document.getElementById('rule-very-low').value),
+                    critical: parseFloat(document.getElementById('rule-critical').value)
+                }
+            };
+        
+            if (!newRule.keyword) {
+                return showToast('অনুগ্রহ করে আইটেমের নামের অংশ (keyword) দিন।', 'error');
+            }
+            if (isNaN(newRule.levels.low) || isNaN(newRule.levels.veryLow) || isNaN(newRule.levels.critical)) {
+                return showToast('অনুগ্রহ করে সকল লেভেলের জন্য সঠিক সংখ্যা দিন।', 'error');
+            }
+        
+            stockLevelRules.push(newRule);
+            await saveRulesToDB();
+            showToast('নতুন বিশেষ নিয়ম সফলভাবে যোগ করা হয়েছে।');
+            renderStockRules();
+            event.target.reset();
+        }
+        
+        async function deleteStockRule(index) {
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            stockLevelRules.splice(index, 1);
+            await saveRulesToDB();
+            showToast('বিশেষ নিয়মটি সফলভাবে ডিলিট করা হয়েছে।');
+            renderStockRules();
+        }
+        
+        async function saveRulesToDB() {
+            localStorage.setItem('stockLevels', JSON.stringify(stockLevels));
+            localStorage.setItem('stockLevelRules', JSON.stringify(stockLevelRules));
+            
+            const dbPath = getDbPath();
+            if (navigator.onLine && dbPath) {
+                try {
+                    await dbPath.collection('app_state').doc('stock_rules').set({
+                        default_levels: stockLevels,
+                        custom_rules: stockLevelRules
+                    });
+                } catch (error) {
+                    console.error("Error saving stock rules:", error);
+                    showToast('ক্লাউডে নিয়ম সেভ করতে সমস্যা হয়েছে।', 'error');
+                }
+            }
+            renderInventoryPage();
+        }
+
+        async function resetDefaultRules() {
+            if (!confirm("আপনি কি নিশ্চিত যে সকল ডিফল্ট নিয়মকে অ্যাপের মূল সেটিংসে ফিরিয়ে আনতে চান? আপনার তৈরি করা বিশেষ নিয়মগুলো ঠিক থাকবে।")) {
+                return;
+            }
+        
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            Object.assign(stockLevels, JSON.parse(JSON.stringify(originalStockLevels)));
+        
+            const dbPath = getDbPath();
+            if (navigator.onLine && dbPath) {
+                try {
+                    await dbPath.collection('app_state').doc('stock_rules').set({
+                        default_levels: stockLevels
+                    }, { merge: true });
+                } catch (error) {
+                    console.error("Error resetting default rules in DB:", error);
+                    showToast('ক্লাউডে নিয়ম রিসেট করতে সমস্যা হয়েছে।', 'error');
+                }
+            }
+        
+            localStorage.setItem('stockLevels', JSON.stringify(stockLevels));
+        
+            showToast('সকল ডিফল্ট নিয়ম সফলভাবে রিসেট করা হয়েছে।');
+            
+            renderStockRules();
+            renderInventoryPage();
+        }
+                
+        function resetItemOrderToDefault() {
+            const sectionSelect = document.getElementById('item-sort-section-select');
+            const selectedSection = sectionSelect.value;
+            if (!selectedSection) return;
+        
+            if (!confirm(`আপনি কি নিশ্চিত যে '${selectedSection}' সেকশনের আইটেম ক্রম ডিফল্ট অবস্থায় ফিরিয়ে আনতে চান?`)) {
+                return;
+            }
+        
+            delete itemOrders[selectedSection];
+            localStorage.setItem('itemOrders', JSON.stringify(itemOrders));
+            
+            initializeItemSortableList();
+            
+            showToast(`'${selectedSection}' সেকশনের ক্রম ডিফল্ট করা হয়েছে। পরিবর্তনটি স্থায়ী করতে "সেভ করুন" বাটনে ক্লিক করুন।`, 'warning');
+        }
+
+        async function renderInventoryPage() {
+            await loadRules();
+        
             const container = document.getElementById('inventoryContainer');
             const searchInput = document.getElementById('searchInput');
             const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -2229,15 +2934,27 @@
         
             sortedSections.forEach(section => {
                 const sortFunction = masterSortFunction(section.name);
+                const customItemOrder = itemOrders[section.name] || [];
                 
-                const sectionItems = filteredAndScoredItems
-                    .filter(item => item.section === section.name)
-                    .sort((a, b) => {
-                        if (a.score !== b.score) {
-                            return b.score - a.score;
-                        }
+                let sectionItems = filteredAndScoredItems
+                    .filter(item => item.section === section.name);
+                
+                if (customItemOrder.length > 0) {
+                    sectionItems.sort((a, b) => {
+                        if (a.score !== b.score) return b.score - a.score;
+                        const indexA = customItemOrder.indexOf(a.id);
+                        const indexB = customItemOrder.indexOf(b.id);
+                        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                        if (indexA !== -1) return -1;
+                        if (indexB !== -1) return 1;
                         return sortFunction(a, b);
                     });
+                } else {
+                    sectionItems.sort((a, b) => {
+                        if (a.score !== b.score) return b.score - a.score;
+                        return sortFunction(a, b);
+                    });
+                }
         
                 if (sectionItems.length > 0) {
                     foundItems = true;
@@ -2277,12 +2994,27 @@
         
             let tableRowsHTML = itemsToShow.map(item => {
                 let stockClass = '', stockIcon = '';
-                if (item.quantity <= LEVEL_CRITICAL) { stockClass = 'level-critical'; stockIcon = '🚨'; } 
-                else if (item.quantity <= LEVEL_VERY_LOW) { stockClass = 'level-very-low'; stockIcon = '🔥'; }
-                else if (item.quantity <= LEVEL_LOW) { stockClass = 'level-low'; stockIcon = '⚠️'; }
-                
                 const unit = item.unit || 'পিস';
-                const highlightClass = (searchTerm && item.name.toLowerCase().includes(searchTerm)) ? 'search-highlight' : '';
+                const lowerItemName = item.name.toLowerCase();
+                let levels = null;
+        
+                const customRule = stockLevelRules.find(rule => lowerItemName.includes(rule.keyword));
+        
+                if (customRule) {
+                    levels = customRule.levels;
+                } else {
+                    levels = stockLevels[unit] || stockLevels['default'];
+                }
+        
+                if (item.quantity <= levels.critical) {
+                    stockClass = 'level-critical'; stockIcon = '🚨';
+                } else if (item.quantity <= levels.veryLow) {
+                    stockClass = 'level-very-low'; stockIcon = '🔥';
+                } else if (item.quantity <= levels.low) {
+                    stockClass = 'level-low'; stockIcon = '⚠️';
+                }
+                
+                const highlightClass = (searchTerm && lowerItemName.includes(searchTerm)) ? 'search-highlight' : '';
                 
                 return `<tr class="${stockClass} ${highlightClass}" data-highlight-id="${item.id}">
                             <td data-label="আইটেমের নাম" class="item-name-cell" data-item-id="${item.id}">${item.name} <span class="stock-icon">${stockIcon}</span></td>
@@ -2294,7 +3026,7 @@
                             </td>
                         </tr>`;
             }).join('');
-        
+            
             let expandButtonHTML = '';
             if (items.length > ITEMS_PER_PAGE) {
                 const buttonText = isExpanded ? 'Less' : 'More';
@@ -2324,23 +3056,23 @@
                         ${expandButtonHTML}` 
                     : '<p class="empty-section">এই সেকশনে কোনো আইটেম নেই।</p>'}
                 </div>`;
-
+            
             card.querySelector('.section-title').addEventListener('click', (e) => {
                 const target = e.currentTarget;
                 editSectionName(target.dataset.sectionId, target.dataset.sectionName);
             });
-
+        
             card.querySelector('.delete-section-btn').addEventListener('click', (e) => {
                 const target = e.currentTarget;
                 deleteSection(target.dataset.sectionId, target.dataset.sectionName);
             });
-
+        
             card.querySelectorAll('.item-name-cell').forEach(cell => {
                 cell.addEventListener('click', (e) => {
                     openItemDetailsModal(e.currentTarget.dataset.itemId);
                 });
             });
-
+        
             card.querySelectorAll('.stock-cell').forEach(cell => {
                 cell.addEventListener('click', (e) => {
                     const target = e.currentTarget;
@@ -3178,10 +3910,11 @@
         
             const sortedSections = [...sections].sort((a, b) => a.name.localeCompare(b.name));
             
-            const sectionOptions = sortedSections.map(s => {
-                const isSelected = (s.name === lastSelectedSection && lastSelectedSection !== '');
-                return `<option value="${s.name}" ${isSelected ? 'selected' : ''}>${s.name}</option>`;
-            }).join('');
+            const sectionOptions = `<option value="" disabled selected>-- সেকশন নির্বাচন করুন --</option>` + 
+                sortedSections.map(s => {
+                    const isSelected = (s.name === lastSelectedSection && lastSelectedSection !== '');
+                    return `<option value="${s.name}" ${isSelected ? 'selected' : ''}>${s.name}</option>`;
+                }).join('');
         
             formCard.innerHTML = `
                 <button class="remove-form-btn" onclick="this.parentElement.remove(); updateSaveButtonState();">×</button>
@@ -3366,100 +4099,70 @@
             
             const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name));
             
-            userSelect.innerHTML = sortedUsers.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+            userSelect.innerHTML = `<option value="" disabled selected>-- ব্যবহারকারী নির্বাচন করুন --</option>${sortedUsers.map(u => `<option value="${u.name}">${u.name}</option>`).join('')}`;
             
             document.getElementById('provide-items-container').innerHTML = '';
             document.getElementById('pi-is-urgent-main').checked = false;
         
             addProvideItemForm();
             openModal('provideItemModal');
+        
+            const firstSearchInput = document.querySelector('#provide-items-container .custom-search-input');
+            if (firstSearchInput) {
+                setTimeout(() => {
+                    firstSearchInput.focus();
+                }, 100); 
+            }
         }
 
         function addProvideItemForm() {
             const container = document.getElementById('provide-items-container');
-            const allForms = container.getElementsByClassName('item-form-card');
-            let lastSelectedSection = '';
-        
-            if (allForms.length > 0) {
-                const lastForm = allForms[allForms.length - 1];
-                const lastSelect = lastForm.querySelector('.pi-section-dynamic');
-                if (lastSelect) {
-                    lastSelectedSection = lastSelect.value;
-                }
-            }
+            const formId = `provide-form-${Date.now()}`;
         
             const formCard = document.createElement('div');
             formCard.className = 'item-form-card';
-        
-            const sortedSections = [...sections].sort((a, b) => a.name.localeCompare(b.name));
-            
-            const sectionOptions = sortedSections.map(s => {
-                const isSelected = (s.name === lastSelectedSection && lastSelectedSection !== '');
-                return `<option value="${s.name}" ${isSelected ? 'selected' : ''}>${s.name}</option>`;
-            }).join('');
-        
-            const uniqueId = `pi-item-dynamic-${Date.now()}-${Math.random()}`;
-        
+            formCard.id = formId;
             formCard.innerHTML = `
-                <button class="remove-form-btn" onclick="destroySelect2(this.parentElement); this.parentElement.remove(); updateProvideButtonState();">×</button>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <select class="pi-section-dynamic" onchange="populateDynamicItems(this)">
-                        <option value="">সেকশন বাছাই করুন</option>
-                        ${sectionOptions}
-                    </select>
-                    <select id="${uniqueId}" class="pi-item-dynamic" onchange="updateProvideQuantityStep(this)">
-                        <option value="">আইটেম বাছাই করুন</option>
-                    </select>
+                <button class="remove-form-btn" onclick="this.parentElement.remove(); updateProvideButtonState();">×</button>
+                <div class="custom-search-container">
+                    <input type="text" class="custom-search-input" placeholder="আইটেমের নাম লিখে খুঁজুন..." onkeyup="filterItems(this)" onfocus="filterItems(this, true)">
+                    <div class="custom-search-results"></div>
                 </div>
-                <input type="number" class="pi-quantity-dynamic" placeholder="পরিমাণ" min="0" step="any" required>
+                <input type="hidden" class="selected-item-id">
+                <input type="number" class="pi-quantity-dynamic" placeholder="পরিমাণ" min="0" step="any" required oninput="validateStockOnInput(this)">
             `;
             container.appendChild(formCard);
-        
-            $(`#${uniqueId}`).select2({
-                placeholder: "আইটেম খুঁজুন...",
-                allowClear: true,
-                dropdownParent: document.getElementById('provideItemModal')
-            });
-        
-            if (lastSelectedSection) {
-                populateDynamicItems(formCard.querySelector('.pi-section-dynamic'));
-            }
-        
             updateProvideButtonState();
-            formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            formCard.querySelector('.pi-quantity-dynamic').focus();
+            
+            const newInput = formCard.querySelector('.custom-search-input');
+            newInput.focus();
+        
+            setTimeout(() => {
+                filterItems(newInput, true);
+            }, 0);
         }
 
-        function destroySelect2(parentCard) {
-            const selectElement = $(parentCard).find('.pi-item-dynamic');
-            if (selectElement.data('select2')) {
-                selectElement.select2('destroy');
-            }
-        }
- 
-        function populateDynamicItems(sectionSelect) {
-            const itemSelect = sectionSelect.closest('.item-form-card').querySelector('.pi-item-dynamic');
-            const sectionName = sectionSelect.value;
-            const sectionItems = allItems.filter(i => i.section === sectionName);
+        function validateStockOnInput(quantityInput) {
+            const formCard = quantityInput.closest('.item-form-card');
+            const itemId = formCard.querySelector('.selected-item-id').value;
+            const enteredQuantity = parseFloat(quantityInput.value);
         
-            if ($(itemSelect).data('select2')) {
-                $(itemSelect).select2('destroy');
+            if (!itemId || isNaN(enteredQuantity) || enteredQuantity <= 0) {
+                return;
             }
         
-            if (sectionItems.length > 0) {
-                itemSelect.innerHTML = '<option value="">আইটেম বাছাই করুন</option>' + sectionItems.map(i => {
-                    const unit = i.unit || 'পিস';
-                    return `<option value="${i.id}">${i.name} (স্টক: ${toBengaliNumber(i.quantity)} ${unit})</option>`;
-                }).join('');
-            } else {
-                itemSelect.innerHTML = '<option value="">এই সেকশনে আইটেম নেই</option>';
-            }
+            const item = allItems.find(i => i.id === itemId);
         
-            $(itemSelect).select2({
-                placeholder: "আইটেম খুঁজুন...",
-                allowClear: true,
-                dropdownParent: document.getElementById('provideItemModal')
-            });
+            if (item && enteredQuantity > item.quantity) {
+                if (navigator.vibrate) {
+                    navigator.vibrate(100);
+                }
+                
+                showToast(`অপর্যাপ্ত স্টক! সর্বোচ্চ ${toBengaliNumber(item.quantity)} ${item.unit} দেওয়া যাবে।`, 'error');
+                
+                quantityInput.value = '';
+                quantityInput.focus();
+            }
         }
 
         function updateProvideButtonState() {
@@ -3501,7 +4204,7 @@
             for (const card of formCards) {
                 if (errorOccurred) break;
         
-                const itemId = card.querySelector('.pi-item-dynamic').value;
+                const itemId = card.querySelector('.selected-item-id').value;
                 const quantityStr = card.querySelector('.pi-quantity-dynamic').value;
                 const quantity = parseFloat(quantityStr);
         
@@ -3547,9 +4250,9 @@
                 document.getElementById('pi-is-urgent-main').checked = false;
                 closeModal('provideItemModal');
                 showToast(`${toBengaliNumber(itemsToProvideCount)}টি আইটেম সফলভাবে প্রদান করা হয়েছে।`);
-                 if (itemsToUpdate.length === 1) {
+                if (itemsToUpdate.length === 1) {
                     itemToHighlight = itemsToUpdate[0].id;
-                }               
+                }
                 renderInventoryPage();
                 updateSlidingNotifications();
         
@@ -3632,6 +4335,7 @@
         }
 
         async function openDownloadModal() {
+            tempRequisitionData = JSON.parse(localStorage.getItem('tempRequisition') || '{}');          
             const dbPath = getDbPath();
             if (navigator.onLine && dbPath) {
                 try {
@@ -3668,18 +4372,28 @@
                                 </thead>
                                 <tbody>`;
         
-            const tempRequisition = JSON.parse(localStorage.getItem('tempRequisition') || '{}');
-            const excludedItems = tempRequisition.excluded || [];
+            const excludedItems = tempRequisitionData.excluded || [];
             let itemCounter = 0;
         
             const sortedSections = sortSections(sections, '');
             
             sortedSections.forEach(section => {
                 const sortFunction = masterSortFunction(section.name);
-                const sectionItems = allItems
-                    .filter(item => item.section === section.name)
-                    .sort(sortFunction);
-        
+                let sectionItems = allItems.filter(item => item.section === section.name);
+                
+                const customItemOrder = itemOrders[section.name] || [];
+                if (customItemOrder.length > 0) {
+                    sectionItems.sort((a, b) => {
+                        const indexA = customItemOrder.indexOf(a.id);
+                        const indexB = customItemOrder.indexOf(b.id);
+                        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                        if (indexA !== -1) return -1;
+                        if (indexB !== -1) return 1;
+                        return sortFunction(a, b);
+                    });
+                } else {
+                    sectionItems.sort(sortFunction);
+                }
                 if (sectionItems.length > 0) {
                     tableHTML += `
                         <tr>
@@ -3692,7 +4406,7 @@
                     sectionItems.forEach(item => {
                         itemCounter++;
                         const stockInfo = `${toBengaliNumber(item.quantity)} ${item.unit || 'পিস'}`;
-                        const savedReq = tempRequisition[item.id] || '';
+                        const savedReq = tempRequisitionData[item.id] || '';
                         const isExcluded = excludedItems.includes(item.id);
                         const rowClass = isExcluded ? 'item-excluded' : '';
                         const itemNameStyle = (item.name.length > 25) ? 'font-size: 11px;' : '';
@@ -3766,68 +4480,68 @@
         }
 
         function showUserReport(userId) {
-    const user = users.find(u => u.id === userId);
-    if (!user) return;
-
-    const userLedger = ledger.filter(l => l.person === user.name && l.change < 0)
-                             .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    const reportTitle = document.getElementById('user-report-title');
-    reportTitle.textContent = `${user.name} এর রিপোর্ট`;
-
-    const clearAllBtn = document.getElementById('clear-user-report-btn');
-    clearAllBtn.onclick = () => clearAllUserTransactions(userId);
-
-    const reportBody = document.getElementById('user-report-body');
-    if (userLedger.length === 0) {
-        reportBody.innerHTML = '<p style="text-align: center; padding: 20px 0;">এই ব্যবহারকারী কোনো আইটেম গ্রহণ করেনি।</p>';
-        clearAllBtn.style.display = 'none';
-    } else {
-        clearAllBtn.style.display = 'inline-block';
-        let tableHTML = '<div class="table-container"><table><thead><tr><th>তারিখ</th><th>আইটেম</th><th>পরিমাণ</th></tr></thead><tbody>';
-        userLedger.forEach(entry => {
-            const item = allItems.find(i => i.id === entry.itemId);
-            const unit = item ? (item.unit || 'পিস') : 'পিস';
-            
-            tableHTML += `
-                <tr class="user-report-row" data-ledger-id="${entry.id}" style="cursor: pointer;">
-                    <td>${new Date(entry.date).toLocaleDateString('bn-BD')}</td>
-                    <td>${entry.itemName}</td>
-                    <td>${toBengaliNumber(Math.abs(entry.change))} ${unit}</td>
-                </tr>
-            `;
-        });
-        tableHTML += '</tbody></table></div>';
-        reportBody.innerHTML = tableHTML;
-
-        const rows = reportBody.querySelectorAll('.user-report-row');
-        rows.forEach(row => {
-            let pressTimer;
-            const ledgerId = row.getAttribute('data-ledger-id');
-
-            const startPress = (e) => {
-                pressTimer = setTimeout(() => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    deleteSingleUserTransaction(ledgerId, userId);
-                }, 1000);
-            };
-
-            const cancelPress = () => {
-                clearTimeout(pressTimer);
-            };
-
-            row.addEventListener('mousedown', startPress);
-            row.addEventListener('touchstart', startPress, { passive: false });
-            
-            row.addEventListener('mouseup', cancelPress);
-            row.addEventListener('mouseleave', cancelPress);
-            row.addEventListener('touchend', cancelPress);
-            row.addEventListener('touchmove', cancelPress);
-        });
-    }
-    openModal('userReportModal');
-}
+          const user = users.find(u => u.id === userId);
+          if (!user) return;
+      
+          const userLedger = ledger.filter(l => l.person === user.name && l.change < 0)
+                                   .sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+          const reportTitle = document.getElementById('user-report-title');
+          reportTitle.textContent = `${user.name} এর রিপোর্ট`;
+      
+          const clearAllBtn = document.getElementById('clear-user-report-btn');
+          clearAllBtn.onclick = () => clearAllUserTransactions(userId);
+      
+          const reportBody = document.getElementById('user-report-body');
+          if (userLedger.length === 0) {
+              reportBody.innerHTML = '<p style="text-align: center; padding: 20px 0;">এই ব্যবহারকারী কোনো আইটেম গ্রহণ করেনি।</p>';
+              clearAllBtn.style.display = 'none';
+          } else {
+              clearAllBtn.style.display = 'inline-block';
+              let tableHTML = '<div class="table-container"><table><thead><tr><th>তারিখ</th><th>আইটেম</th><th>পরিমাণ</th></tr></thead><tbody>';
+              userLedger.forEach(entry => {
+                  const item = allItems.find(i => i.id === entry.itemId);
+                  const unit = item ? (item.unit || 'পিস') : 'পিস';
+                  
+                  tableHTML += `
+                      <tr class="user-report-row" data-ledger-id="${entry.id}" style="cursor: pointer;">
+                          <td>${new Date(entry.date).toLocaleDateString('bn-BD')}</td>
+                          <td>${entry.itemName}</td>
+                          <td>${toBengaliNumber(Math.abs(entry.change))} ${unit}</td>
+                      </tr>
+                  `;
+              });
+              tableHTML += '</tbody></table></div>';
+              reportBody.innerHTML = tableHTML;
+      
+              const rows = reportBody.querySelectorAll('.user-report-row');
+              rows.forEach(row => {
+                  let pressTimer;
+                  const ledgerId = row.getAttribute('data-ledger-id');
+      
+                  const startPress = (e) => {
+                      pressTimer = setTimeout(() => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          deleteSingleUserTransaction(ledgerId, userId);
+                      }, 1000);
+                  };
+      
+                  const cancelPress = () => {
+                      clearTimeout(pressTimer);
+                  };
+      
+                  row.addEventListener('mousedown', startPress);
+                  row.addEventListener('touchstart', startPress, { passive: false });
+                  
+                  row.addEventListener('mouseup', cancelPress);
+                  row.addEventListener('mouseleave', cancelPress);
+                  row.addEventListener('touchend', cancelPress);
+                  row.addEventListener('touchmove', cancelPress);
+              });
+          }
+          openModal('userReportModal');
+      }
 
         async function clearAllUserTransactions(userId) {
             const user = users.find(u => u.id === userId);
@@ -3908,30 +4622,26 @@
         }
 
         function saveTempRequisition(itemId, quantity) {
-            const localTempRequisition = JSON.parse(localStorage.getItem('tempRequisition') || '{}');
-            const dbPath = getDbPath();
-        
             if (quantity !== null && quantity !== "") {
-                localTempRequisition[itemId] = quantity;
+                tempRequisitionData[itemId] = quantity;
             } else {
-                delete localTempRequisition[itemId];
+                delete tempRequisitionData[itemId];
             }
-            localStorage.setItem('tempRequisition', JSON.stringify(localTempRequisition));
         
-            if (navigator.onLine && dbPath) {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                localStorage.setItem('tempRequisition', JSON.stringify(tempRequisitionData));
+                
+                const dbPath = getDbPath();
+                if (navigator.onLine && dbPath) {
                     const reqRef = dbPath.collection('app_state').doc('temp_requisition');
                     
-                    if (quantity !== null && quantity !== "") {
-                        reqRef.set({ [itemId]: quantity }, { merge: true });
-                    } else {
-                        reqRef.update({
-                            [itemId]: firebase.firestore.FieldValue.delete()
-                        });
-                    }
-                }, 1000);
-            }
+                    const dataToSync = {};
+                    dataToSync[itemId] = quantity !== null && quantity !== "" ? quantity : firebase.firestore.FieldValue.delete();
+                    
+                    reqRef.set(dataToSync, { merge: true });
+                }
+            }, 500);
         }
 
         function handleRequisitionEnter(event, currentInput) {
@@ -4197,12 +4907,12 @@
         function clearRequisitionInputs() {
             if (!confirm("আপনি কি নিশ্চিত যে সকল চাহিদার পরিমাণ মুছে ফেলতে চান?")) return;
         
-            const dbPath = getDbPath();
-            
+            tempRequisitionData = {};
             localStorage.removeItem('tempRequisition');
         
+            const dbPath = getDbPath();
             if (navigator.onLine && dbPath) {
-                dbPath.collection('app_state').doc('temp_requisition').delete()
+                dbPath.collection('app_state').doc('temp_requisition').set({})
                     .then(() => {
                         showToast('ক্লাউড থেকে চাহিদার ডেটা মুছে ফেলা হয়েছে।');
                     })
@@ -4281,16 +4991,16 @@
             });
         
             tempRequisitionData = newRequisitionData;
-            localStorage.setItem('tempRequisition', JSON.stringify(newRequisitionData));
+            localStorage.setItem('tempRequisition', JSON.stringify(tempRequisitionData));
         
             const dbPath = getDbPath();
             if (navigator.onLine && dbPath) {
-                dbPath.collection('app_state').doc('temp_requisition').set(newRequisitionData)
+                dbPath.collection('app_state').doc('temp_requisition').set(tempRequisitionData)
                     .catch(err => console.error("Error syncing loaded requisition to cloud:", err));
             }
         
             showToast('পূর্ববর্তী মাসের চাহিদা সফলভাবে লোড করা হয়েছে।', 'success');
-        
+            
             openDownloadModal();
         }
 
@@ -4351,8 +5061,13 @@
             users = JSON.parse(localStorage.getItem('app_users') || '[]');
             ledger = JSON.parse(localStorage.getItem('ledger') || '[]');
             archivedReports = JSON.parse(localStorage.getItem('archivedReports') || '[]');
+            
+            sectionOrder = JSON.parse(localStorage.getItem('sectionOrder') || '[]');
+            itemOrders = JSON.parse(localStorage.getItem('itemOrders') || '{}');
         
             renderInventoryPage();
+            initializeSortableList();
+            populateItemSortSectionDropdown();      
             renderUsersPage();
             renderArchivedReports();
             updateSlidingNotifications();
@@ -4728,6 +5443,81 @@
             setTimeout(() => window.location.reload(), 1500);
         }
 
+        function filterItems(input) {
+            const searchTerm = input.value.toLowerCase();
+            const resultsContainer = input.nextElementSibling;
+            const formCard = input.closest('.item-form-card');
+        
+            resultsContainer.innerHTML = '';
+        
+            // যদি সার্চ বক্স খালি থাকে
+            if (searchTerm.length === 0) {
+                // sectionOrder অনুযায়ী সেকশনগুলো সাজিয়ে নিন
+                const sortedSections = [...sectionOrder];
+                
+                // প্রতিটি সেকশনের জন্য আইটেমগুলো দেখান
+                sortedSections.forEach(sectionName => {
+                    const itemsInSection = allItems.filter(item => item.section === sectionName);
+                    
+                    // আইটেমগুলোকে তাদের নিজস্ব ক্রম অনুযায়ী সাজান
+                    const customItemOrder = itemOrders[sectionName] || [];
+                    const defaultSortFunc = masterSortFunction(sectionName);
+                    if (customItemOrder.length > 0) {
+                        itemsInSection.sort((a, b) => {
+                            const indexA = customItemOrder.indexOf(a.id);
+                            const indexB = customItemOrder.indexOf(b.id);
+                            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                            if (indexA !== -1) return -1;
+                            if (indexB !== -1) return 1;
+                            return defaultSortFunc(a, b);
+                        });
+                    } else {
+                        itemsInSection.sort(defaultSortFunc);
+                    }
+        
+                    itemsInSection.forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'custom-search-item';
+                        itemDiv.innerHTML = `
+                            ${item.name}
+                            <small>সেকশন: ${item.section} (স্টক: ${toBengaliNumber(item.quantity)} ${item.unit})</small>
+                        `;
+                        itemDiv.onclick = () => selectItem(input, item);
+                        resultsContainer.appendChild(itemDiv);
+                    });
+                });
+                resultsContainer.classList.add('show');
+                return;
+            }
+        
+            // যদি সার্চ বক্সে লেখা থাকে (ফিল্টারিং)
+            const filtered = allItems.filter(item => item.name.toLowerCase().includes(searchTerm));
+            
+            if (filtered.length > 0) {
+                filtered.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'custom-search-item';
+                    itemDiv.innerHTML = `
+                        ${item.name}
+                        <small>সেকশন: ${item.section} (স্টক: ${toBengaliNumber(item.quantity)} ${item.unit})</small>
+                    `;
+                    itemDiv.onclick = () => selectItem(input, item);
+                    resultsContainer.appendChild(itemDiv);
+                });
+                resultsContainer.classList.add('show');
+            } else {
+                resultsContainer.classList.remove('show');
+            }
+        }
+        
+        function selectItem(input, item) {
+            const formCard = input.closest('.item-form-card');
+            input.value = item.name;
+            formCard.querySelector('.selected-item-id').value = item.id;
+            formCard.querySelector('.custom-search-results').classList.remove('show');
+            formCard.querySelector('.pi-quantity-dynamic').focus();
+        }
+
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
             const showMainApp = () => {
@@ -4741,22 +5531,20 @@
             
                 document.getElementById('main-app-wrapper').style.display = 'block';
                 showApp();
-            
-                const backToTopBtn = document.getElementById('back-to-top-btn');
-                if (backToTopBtn) {
-                    window.onscroll = () => {
-                        if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
-                            backToTopBtn.classList.add('show');
-                        } else {
-                            backToTopBtn.classList.remove('show');
-                        }
-                    };
-            
-                    backToTopBtn.addEventListener('click', () => {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    });
-                }
             };
+            document.addEventListener('click', function(event) {
+                if (event.target.classList.contains('custom-search-input')) {
+                    return;
+                }
+            
+                const openSearchResults = document.querySelectorAll('.custom-search-results.show');
+                openSearchResults.forEach(container => {
+                    const searchWrapper = container.closest('.custom-search-container');
+                    if (searchWrapper && !searchWrapper.contains(event.target)) {
+                        container.classList.remove('show');
+                    }
+                });
+            });
 
             const showInitialLogin = () => {
                 document.getElementById('main-app-wrapper').style.display = 'block';
@@ -4766,13 +5554,10 @@
             auth.onAuthStateChanged(async (user) => {
                 currentUser = user;
                 const hasLocalData = (localStorage.getItem('items') || '[]').length > 2 || (localStorage.getItem('sections') || '[]').length > 2;
-        
-                if (user) {
-                    showMainApp();
-                } else {
-                    const isOnline = await checkOnlineStatus();
-                    if (isOnline) {
-                        showInitialLogin();
+            
+                const proceedToApp = () => {
+                    if (user) {
+                        showMainApp();
                     } else {
                         if (hasLocalData) {
                             showToast('আপনি এখন অফলাইনে আছেন।', 'warning');
@@ -4782,8 +5567,94 @@
                             showToast('অফলাইন ডেটা নেই, অনুগ্রহ করে অনলাইনে এসে লগইন করুন।', 'error');
                         }
                     }
-                }
+                };
+            
+                const checkVersionAndRun = async () => {
+                    const isOnline = await checkOnlineStatus();
+                    if (isOnline && getDbPath()) {
+                        try {
+                            const settingsDoc = await getDbPath().collection('app_state').doc('settings').get();
+                            if (settingsDoc.exists) {
+                                onlineAppVersion = settingsDoc.data().app_version;
+                            }
+                        } catch (error) {
+                            console.error("Error fetching app version:", error);
+                        }
+                    }
+            
+                    if (onlineAppVersion && onlineAppVersion !== CURRENT_APP_VERSION) {
+                        document.getElementById('forceUpdateModal').style.display = 'flex';
+                        document.getElementById('update-now-btn').onclick = () => {
+                            window.location.reload(true);
+                        };
+                    } else {
+                        proceedToApp();
+                    }
+                };
+            
+                checkVersionAndRun();
             });
+                const backToTopBtn = document.getElementById('back-to-top-btn');
+                const scrollToBottomBtn = document.getElementById('scroll-to-bottom-btn');
+                
+                if (backToTopBtn && scrollToBottomBtn) {
+                    const stopSlowScroll = () => {
+                        if (slowScrollAnimationId) {
+                            cancelAnimationFrame(slowScrollAnimationId);
+                            slowScrollAnimationId = null;
+                        }
+                    };
+                
+                    window.addEventListener('wheel', stopSlowScroll, { passive: true });
+                    window.addEventListener('touchstart', stopSlowScroll, { passive: true });
+                
+                    window.onscroll = () => {
+                        const scrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
+                        const totalHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                
+                        if (scrollPosition > 200) {
+                            backToTopBtn.classList.add('show');
+                        } else {
+                            backToTopBtn.classList.remove('show');
+                        }
+                
+                        if (scrollPosition < totalHeight - 200) {
+                            scrollToBottomBtn.classList.add('show');
+                        } else {
+                            scrollToBottomBtn.classList.remove('show');
+                            stopSlowScroll();
+                        }
+                    };
+                
+                    backToTopBtn.addEventListener('click', () => {
+                        stopSlowScroll();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    });
+                
+                    scrollToBottomBtn.addEventListener('click', () => {
+                        stopSlowScroll(); 
+                        
+                        const startPosition = window.scrollY;
+                        const distance = document.documentElement.scrollHeight - startPosition - window.innerHeight;
+                        if (distance <= 0) return;
+                
+                        const scrollSpeed = 10;
+                        let currentPosition = startPosition;
+                
+                        const step = () => {
+                            currentPosition += scrollSpeed;
+                            window.scrollTo(0, currentPosition);
+                
+                            if (currentPosition < document.documentElement.scrollHeight - window.innerHeight) {
+                                slowScrollAnimationId = requestAnimationFrame(step);
+                            } else {
+                                slowScrollAnimationId = null;
+                            }
+                        };
+                
+                        slowScrollAnimationId = requestAnimationFrame(step);
+                    });
+                }
         });
 
     </script>
