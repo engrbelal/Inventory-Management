@@ -113,6 +113,7 @@
             width: 100%; max-width: 500px; max-height: 90vh;
             display: flex; flex-direction: column;
             animation: modal-pop 0.3s ease-out;
+            height: fit-content;
         }
         @keyframes modal-pop {
             from { opacity: 0; transform: scale(0.9); }
@@ -127,7 +128,7 @@
         .modal-header h2 { margin: 0; font-size: 16px; cursor: pointer; }
         .modal-header h2:hover { color: #0056b3; }
         .close-btn { font-size: 24px; font-weight: bold; cursor: pointer; background: none; border: none; }
-        .modal-body { overflow-y: auto; padding: 15px; }
+        .modal-body { overflow-y: auto; padding: 15px; flex-grow: 1; }
         .modal-footer {
             background: white; padding: 12px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;
             border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
@@ -671,9 +672,9 @@
             border: 1px solid var(--border-color);
             border-top: none;
             border-radius: 0 0 6px 6px;
-            max-height: 200px;
+            max-height: 40vh;
             overflow-y: auto;
-            z-index: 1052; /* অত্যন্ত গুরুত্বপূর্ণ */
+            z-index: 1053; /* অত্যন্ত গুরুত্বপূর্ণ */
             box-shadow: var(--shadow);
         }
         
@@ -701,7 +702,16 @@
             font-size: 11px;
             margin-top: 2px;
         }
+        #provideItemModal.modal-expanded .modal-content {
+            height: 80vh;
+            max-height: 700px;
+        }
         
+        #provideItemModal.modal-compact .modal-content {
+            height: auto;
+            max-height: 90vh;
+        }
+
     </style>
 </head>
 <body>
@@ -990,17 +1000,26 @@
             <div class="modal-content">
                 <div class="modal-header"><h2>আইটেম প্রদান করুন</h2><button class="close-btn" onclick="closeModal('provideItemModal')">&times;</button></div>
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label for="pi-user-main">ব্যবহারকারী</label>
-                        <select id="pi-user-main"></select>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;" id="user-requisition-group">
+                        <div class="form-group" style="margin: 0; padding: 0; box-shadow: none;">
+                            <select id="pi-user-main"></select>
+                        </div>
+                        <div class="form-group" id="requisition-id-group" style="margin: 0; padding: 0; box-shadow: none;">
+                            <input type="text" id="pi-requisition-id" placeholder="রিকুইজিশন নম্বর">
+                        </div>
                     </div>
+                
                     <div id="provide-items-container">
                         <!-- নতুন আইটেম ফর্মগুলো এখানে যুক্ত হবে -->
                     </div>
-                    <div class="form-group" style="background: var(--level-low-bg); display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 10px; margin-top: 15px;">
-                        <input type="checkbox" id="pi-is-urgent-main" style="width: auto;">
-                        <label for="pi-is-urgent-main" style="margin: 0;">রিকুইজিশন ছাড়া (জরুরী)</label>
+        
+                    <div style="display: flex; margin-top: 15px;">
+                        <div class="form-group" style="background: var(--level-low-bg); display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 10px; margin-bottom: 0; width: 100%;">
+                            <input type="checkbox" id="pi-is-urgent-main" style="width: auto;" onchange="toggleRequisitionIdField(this.checked)">
+                            <label for="pi-is-urgent-main" style="margin: 0;">রিকুইজিশন ছাড়া (জরুরী)</label>
+                        </div>
                     </div>
+
                 </div>
                 <div class="modal-footer" style="justify-content: space-between;">
                     <button onclick="addProvideItemForm()">আরেকটি আইটেম ➕</button>
@@ -1008,7 +1027,7 @@
                 </div>
             </div>
         </div>
-    
+
         <div id="notification-container"></div>
         <div class="sliding-notification-bar" id="slidingNotificationBar"><div class="sliding-text" id="slidingText"></div></div>
         </div>
@@ -1297,16 +1316,19 @@
         let sectionOrder = []; 
         let sortableInstance = null;
         let itemOrders = {};
-        const ADMIN_EMAILS = [
-            "engr.mdbelal@gmail.com", 
-            "shohan.eng@gmail.com", 
-            "utility@goldenrefit-bd.com"
+        const ADMIN_UIDS = [
+            "MnhpRrkD24WNCXQOF0EVWtyqEac2",
+            "X85JKidshVWCJaNO1HVcXknpfbp2",
+            "5xjowSXQKaPDWotozJlRLn6M7lw1"
         ];
         const CENTRAL_DB_ID = "grgl_central_store";
         const SECURITY_PIN = "0000";
         let resolvePinPromise = null;   
-        const CURRENT_APP_VERSION = "2.1.0";
+        const CURRENT_APP_VERSION = "2.1.1";
         let onlineAppVersion = null;
+        
+        const LEVEL_LOW = 5;
+        const LEVEL_CRITICAL = 2;
 
         const stockLevels = {
             "পিস": { low: 8, veryLow: 5, critical: 2 },
@@ -1330,7 +1352,7 @@
             const user = auth.currentUser;
             if (!user) return null;
         
-            const dbId = ADMIN_EMAILS.includes(user.email) ? CENTRAL_DB_ID : user.uid;
+            const dbId = ADMIN_UIDS.includes(user.uid) ? CENTRAL_DB_ID : user.uid;
             
             return db.collection('inventories').doc(dbId);
         }
@@ -1350,6 +1372,18 @@
             const bnNumbers = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
             return str.replace(/[0-9]/g, (w) => bnNumbers[+w]);
         };
+        function toggleRequisitionIdField(isUrgent) {
+            const requisitionGroup = document.getElementById('requisition-id-group');
+            const userRequisitionGroup = document.getElementById('user-requisition-group');
+        
+            if (isUrgent) {
+                requisitionGroup.style.display = 'none';
+                userRequisitionGroup.style.gridTemplateColumns = '1fr';
+            } else {
+                requisitionGroup.style.display = 'grid';
+                userRequisitionGroup.style.gridTemplateColumns = '1fr 1fr';
+            }
+        }   
         const naturalSort = (a, b) => {
             const categoryWeights = {
                 'nipple': 1, 'socket': 2, 'regulator': 3, 'pipe': 4, 'clamp': 5, 
@@ -3073,16 +3107,20 @@
                 });
             });
         
-            card.querySelectorAll('.stock-cell').forEach(cell => {
-                cell.addEventListener('click', (e) => {
-                    const target = e.currentTarget;
-                    editStock(target.dataset.itemId, target.dataset.itemName, parseFloat(target.dataset.itemQuantity));
+            card.querySelectorAll('.stock-cell strong').forEach(strongTag => {
+                const cell = strongTag.parentElement;
+                strongTag.style.cursor = 'pointer'; 
+            
+                strongTag.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    editStock(cell.dataset.itemId, cell.dataset.itemName, parseFloat(cell.dataset.itemQuantity));
                 });
-                cell.addEventListener('touchstart', (e) => handlePress(e, e.currentTarget.dataset.itemId, 'unit'));
-                cell.addEventListener('touchend', handleRelease);
-                cell.addEventListener('mousedown', (e) => handlePress(e, e.currentTarget.dataset.itemId, 'unit'));
-                cell.addEventListener('mouseup', handleRelease);
-                cell.addEventListener('mouseleave', handleRelease);
+            
+                strongTag.addEventListener('touchstart', (e) => handlePress(e, cell.dataset.itemId, 'unit'));
+                strongTag.addEventListener('touchend', handleRelease);
+                strongTag.addEventListener('mousedown', (e) => handlePress(e, cell.dataset.itemId, 'unit'));
+                strongTag.addEventListener('mouseup', handleRelease);
+                strongTag.addEventListener('mouseleave', handleRelease);
             });
             
             return card;
@@ -4096,21 +4134,26 @@
             if (users.length === 0) return showToast('প্রথমে একজন ব্যবহারকারী যোগ করুন।', 'error');
         
             const userSelect = document.getElementById('pi-user-main');
-            
             const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name));
-            
-            userSelect.innerHTML = `<option value="" disabled selected>-- ব্যবহারকারী নির্বাচন করুন --</option>${sortedUsers.map(u => `<option value="${u.name}">${u.name}</option>`).join('')}`;
+            userSelect.innerHTML = `<option value="" disabled selected>-- ব্যবহারকারী --</option>${sortedUsers.map(u => `<option value="${u.name}">${u.name}</option>`).join('')}`;
             
             document.getElementById('provide-items-container').innerHTML = '';
-            document.getElementById('pi-is-urgent-main').checked = false;
+            const urgentCheckbox = document.getElementById('pi-is-urgent-main');
+            urgentCheckbox.checked = false;
+            toggleRequisitionIdField(false); 
         
             addProvideItemForm();
             openModal('provideItemModal');
+        
+            const modal = document.getElementById('provideItemModal');
+            modal.classList.add('modal-expanded');
+            modal.classList.remove('modal-compact');
         
             const firstSearchInput = document.querySelector('#provide-items-container .custom-search-input');
             if (firstSearchInput) {
                 setTimeout(() => {
                     firstSearchInput.focus();
+                    filterItems(firstSearchInput, true);
                 }, 100); 
             }
         }
@@ -4140,6 +4183,10 @@
             setTimeout(() => {
                 filterItems(newInput, true);
             }, 0);
+        
+            const modal = document.getElementById('provideItemModal');
+            modal.classList.add('modal-expanded');
+            modal.classList.remove('modal-compact');
         }
 
         function validateStockOnInput(quantityInput) {
@@ -4177,98 +4224,100 @@
             }
         }
 
-        function executeProvideAllItems() {
+        async function executeProvideAllItems() {
             const personName = document.getElementById('pi-user-main').value;
             const isUrgent = document.getElementById('pi-is-urgent-main').checked;
+            const requisitionValue = document.getElementById('pi-requisition-id').value.trim();
             const formCards = document.querySelectorAll('#provide-items-container .item-form-card');
         
             if (!personName) {
-                showToast('অনুগ্রহ করে একজন ব্যবহারকারী নির্বাচন করুন।', 'error');
-                return;
+                return showToast('অনুগ্রহ করে একজন ব্যবহারকারী নির্বাচন করুন।', 'error');
+            }
+            if (!isUrgent && !requisitionValue) {
+                return showToast('অনুগ্রহ করে রিকুইজিশন স্লিপ নম্বর দিন।', 'error');
             }
             if (formCards.length === 0) {
-                showToast('প্রথমে একটি আইটেম যোগ করুন।', 'error');
-                return;
+                return showToast('প্রথমে একটি আইটেম যোগ করুন।', 'error');
             }
         
-            const localData = {
-                items: JSON.parse(localStorage.getItem('items') || '[]'),
-                ledger: JSON.parse(localStorage.getItem('ledger') || '[]')
-            };
-        
-            let itemsToProvideCount = 0;
-            let errorOccurred = false;
-            const itemsToUpdate = [];
-            const ledgerToSync = [];
-        
+            const itemsToProvide = [];
             for (const card of formCards) {
-                if (errorOccurred) break;
-        
                 const itemId = card.querySelector('.selected-item-id').value;
                 const quantityStr = card.querySelector('.pi-quantity-dynamic').value;
                 const quantity = parseFloat(quantityStr);
+                const itemName = card.querySelector('.custom-search-input').value;
         
-                if (!itemId || isNaN(quantity) || quantity <= 0 || !quantityStr) {
-                    showToast('অনুগ্রহ করে সব আইটেমের তথ্য সঠিকভাবে পূরণ করুন।', 'error');
-                    errorOccurred = true;
-                    break;
+                if (!itemId || isNaN(quantity) || quantity <= 0) {
+                    return showToast('অনুগ্রহ করে সব আইটেমের তথ্য সঠিকভাবে পূরণ করুন।', 'error');
                 }
-        
-                const item = localData.items.find(i => i.id === itemId);
-                if (!item || item.quantity < quantity) {
-                    showToast(`'${item ? item.name : 'অজানা'}' আইটেমের অপর্যাপ্ত স্টক!`, 'error');
-                    errorOccurred = true;
-                    break;
-                }
-        
-                item.quantity -= quantity;
-                itemsToUpdate.push(item);
-        
-                const ledgerEntry = {
-                    id: `ledger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                    itemId: itemId,
-                    itemName: item.name,
-                    change: -quantity,
-                    person: personName,
-                    date: new Date().toISOString(),
-                    isUrgent: isUrgent
-                };
-                localData.ledger.push(ledgerEntry);
-                ledgerToSync.push(ledgerEntry);
-                itemsToProvideCount++;
+                itemsToProvide.push({ itemId, quantity, itemName });
             }
         
-            if (errorOccurred) return;
+            if (!navigator.onLine) {
+                return showToast('এই কাজটি সম্পন্ন করতে ইন্টারনেট সংযোগ প্রয়োজন।', 'error');
+            }
         
-            if (itemsToProvideCount > 0) {
-                localStorage.setItem('items', JSON.stringify(localData.items));
-                localStorage.setItem('ledger', JSON.stringify(localData.ledger));
-                allItems = localData.items;
-                ledger = localData.ledger;
+            showToast('প্রসেস করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...', 'warning');
         
-                document.getElementById('provide-items-container').innerHTML = '';
-                document.getElementById('pi-is-urgent-main').checked = false;
+            try {
+                const user = auth.currentUser;
+                if (!user) {
+                    throw new Error("ব্যবহারকারী লগইন করা নেই।");
+                }
+        
+                const dbId = ADMIN_UIDS.includes(user.uid) ? CENTRAL_DB_ID : user.uid;
+                const mainDocRef = db.collection('inventories').doc(dbId);
+                const requisitionIdAsNumber = isUrgent ? null : parseInt(requisitionValue, 10);
+        
+                if (!isUrgent && isNaN(requisitionIdAsNumber)) {
+                    return showToast('রিকুইজিশন নম্বরটি একটি সঠিক সংখ্যা হতে হবে।', 'error');
+                }
+        
+                if (!isUrgent) {
+                    const ledgerQuery = await mainDocRef.collection('ledger').where('requisitionId', '==', requisitionIdAsNumber).get();
+                    if (!ledgerQuery.empty) {
+                        throw new Error(`রিকুইজিশন নম্বর '${requisitionValue}' ইতোমধ্যে ব্যবহার করা হয়েছে।`);
+                    }
+                }
+        
+                await db.runTransaction(async (transaction) => {
+                    for (const itemData of itemsToProvide) {
+                        const itemRef = mainDocRef.collection('items').doc(itemData.itemId);
+                        const itemSnapshot = await transaction.get(itemRef);
+        
+                        if (!itemSnapshot.exists) {
+                            throw new Error(`'${itemData.itemName}' আইটেমটি ডাটাবেসে পাওয়া যায়নি।`);
+                        }
+        
+                        const currentStock = itemSnapshot.data().quantity;
+                        if (currentStock < itemData.quantity) {
+                            throw new Error(`'${itemData.itemName}' আইটেমের অপর্যাপ্ত স্টক!`);
+                        }
+        
+                        const newStock = currentStock - itemData.quantity;
+                        transaction.update(itemRef, { quantity: newStock });
+        
+                        const ledgerRef = mainDocRef.collection('ledger').doc();
+                        const ledgerEntry = {
+                            id: ledgerRef.id,
+                            itemId: itemData.itemId,
+                            itemName: itemData.itemName,
+                            change: -itemData.quantity,
+                            person: personName,
+                            date: new Date().toISOString(),
+                            isUrgent: isUrgent,
+                            requisitionId: requisitionIdAsNumber
+                        };
+                        transaction.set(ledgerRef, ledgerEntry);
+                    }
+                });
+        
+                showToast(`${toBengaliNumber(itemsToProvide.length)}টি আইটেম সফলভাবে প্রদান করা হয়েছে।`);
                 closeModal('provideItemModal');
-                showToast(`${toBengaliNumber(itemsToProvideCount)}টি আইটেম সফলভাবে প্রদান করা হয়েছে।`);
-                if (itemsToUpdate.length === 1) {
-                    itemToHighlight = itemsToUpdate[0].id;
-                }
-                renderInventoryPage();
-                updateSlidingNotifications();
         
-                const dbPath = getDbPath();
-                if (navigator.onLine && dbPath) {
-                    const batch = db.batch();
-                    itemsToUpdate.forEach(item => {
-                        const itemRef = dbPath.collection('items').doc(item.id);
-                        batch.update(itemRef, { quantity: item.quantity });
-                    });
-                    ledgerToSync.forEach(entry => {
-                        const ledgerRef = dbPath.collection('ledger').doc(entry.id);
-                        batch.set(ledgerRef, entry);
-                    });
-                    batch.commit().catch(error => console.error("Firebase provide item sync error:", error));
-                }
+            } catch (error) {
+                console.error("Operation failed:", error);
+                showToast(error.message || 'লেনদেন ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।', 'error');
             }
         }
 
@@ -4288,34 +4337,66 @@
         }
 
         // --- Sliding Notification ---
-        function updateSlidingNotifications() {
-            const zeroStockItems = allItems.filter(item => item.quantity === 0);
-            const lowStockItems = allItems.filter(item => item.quantity > 0 && item.quantity <= LEVEL_LOW);
+        async function updateSlidingNotifications() {
+            await loadRules();
+        
+            const getUrgencyScore = (item) => {
+                const lowerItemName = item.name.toLowerCase();
+                const customRule = stockLevelRules.find(rule => lowerItemName.includes(rule.keyword));
+                const levels = customRule ? customRule.levels : (stockLevels[item.unit] || stockLevels['default']);
+                
+                if (item.quantity <= 0) {
+                    return 1000;
+                }
+                if (item.quantity <= levels.critical) {
+                    return 500 + (levels.critical - item.quantity);
+                }
+                if (item.quantity <= levels.veryLow) {
+                    return 200 + (levels.veryLow - item.quantity);
+                }
+                if (item.quantity <= levels.low) {
+                    return 100 + (levels.low - item.quantity);
+                }
+                return 0;
+            };
+        
+            const urgentItems = allItems
+                .map(item => ({ ...item, urgency: getUrgencyScore(item) }))
+                .filter(item => item.urgency > 0)
+                .sort((a, b) => b.urgency - a.urgency);
         
             const bar = document.getElementById('slidingNotificationBar');
             const slidingTextEl = document.getElementById('slidingText');
         
-            let notificationParts = [];
+            if (urgentItems.length > 0) {
+                let htmlContent = '';
+                urgentItems.forEach((item, index) => {
+                    const separator = index > 0 ? ' <span style="color: #ffffff4d; margin: 0 8px;">|</span> ' : '';
+                    let stockInfo = '';
+                    let itemClass = '';
         
-            if (zeroStockItems.length > 0) {
-                const text = zeroStockItems.map(item => item.name).join(', ');
-                notificationParts.push(`স্টক নেই: ${text}`);
-            }
+                    if (item.quantity <= 0) {
+                        stockInfo = ' (স্টক নেই)';
+                        itemClass = 'critical-item';
+                    } else {
+                        stockInfo = ` (${toBengaliNumber(item.quantity)})`;
+                        if (item.urgency >= 500) itemClass = 'critical-item';
+                        else if (item.urgency >= 200) itemClass = 'very-low-item';
+                        else itemClass = 'low-item';
+                    }
+                    
+                    htmlContent += `${separator}<span class="urgent-item-link ${itemClass}" data-item-id="${item.id}">${item.name}${stockInfo}</span>`;
+                });
         
-            if (lowStockItems.length > 0) {
-                const text = lowStockItems.map(item => `${item.name} (${toBengaliNumber(item.quantity)})`).join(', ');
-                notificationParts.push(`কম স্টক: ${text}`);
-            }
+                slidingTextEl.innerHTML = htmlContent;
         
-            if (notificationParts.length > 0) {
-                const fullText = notificationParts.join(' | ');
-                slidingTextEl.textContent = fullText;
-        
-                const charactersPerSecond = 25;
-                const duration = Math.max(20, fullText.length / charactersPerSecond);
+                const totalLength = slidingTextEl.textContent.length;
+                const charactersPerSecond = 15;
+                const duration = Math.max(15, totalLength / charactersPerSecond);
                 slidingTextEl.style.animationDuration = `${duration.toFixed(2)}s`;
         
-                if (zeroStockItems.length > 0) {
+                const hasCritical = urgentItems.some(item => item.urgency >= 500);
+                if (hasCritical) {
                     bar.style.backgroundColor = 'var(--level-critical-bg)';
                     bar.style.color = 'var(--light-text)';
                 } else {
@@ -4326,6 +4407,19 @@
                 bar.classList.add('show');
                 const paddingValue = Math.max(0, bar.offsetHeight);
                 document.body.style.paddingBottom = paddingValue + 'px';
+        
+                slidingTextEl.querySelectorAll('.urgent-item-link').forEach(link => {
+                    link.style.cursor = 'pointer';
+                    link.style.textDecoration = 'underline';
+                    link.onclick = (e) => {
+                        e.stopPropagation();
+                        const itemId = link.dataset.itemId;
+                        openItemDetailsModal(itemId);
+                        
+                        itemToHighlight = itemId;
+                        renderInventoryPage();
+                    };
+                });
         
             } else {
                 bar.classList.remove('show');
@@ -5516,27 +5610,27 @@
             formCard.querySelector('.selected-item-id').value = item.id;
             formCard.querySelector('.custom-search-results').classList.remove('show');
             formCard.querySelector('.pi-quantity-dynamic').focus();
+        
+            const modal = document.getElementById('provideItemModal');
+            modal.classList.remove('modal-expanded');
+            modal.classList.add('modal-compact');
         }
+
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
-            const showMainApp = () => {
-                document.getElementById('merge-btn').addEventListener('click', () => processDataImport(true));
-                document.getElementById('replace-btn').addEventListener('click', () => processDataImport(false));
-                document.getElementById('confirm-reset-1').addEventListener('click', () => {
-                    document.getElementById('reset-confirm-dialog-1').classList.remove('show');
-                    document.getElementById('reset-confirm-dialog-2').classList.add('show');
-                });
-                document.getElementById('confirm-reset-2').addEventListener('click', executeHardReset);
-            
-                document.getElementById('main-app-wrapper').style.display = 'block';
-                showApp();
-            };
+            document.getElementById('merge-btn').addEventListener('click', () => processDataImport(true));
+            document.getElementById('replace-btn').addEventListener('click', () => processDataImport(false));
+            document.getElementById('confirm-reset-1').addEventListener('click', () => {
+                document.getElementById('reset-confirm-dialog-1').classList.remove('show');
+                document.getElementById('reset-confirm-dialog-2').classList.add('show');
+            });
+            document.getElementById('confirm-reset-2').addEventListener('click', executeHardReset);
+        
             document.addEventListener('click', function(event) {
                 if (event.target.classList.contains('custom-search-input')) {
                     return;
                 }
-            
                 const openSearchResults = document.querySelectorAll('.custom-search-results.show');
                 openSearchResults.forEach(container => {
                     const searchWrapper = container.closest('.custom-search-container');
@@ -5545,35 +5639,65 @@
                     }
                 });
             });
-
-            const showInitialLogin = () => {
-                document.getElementById('main-app-wrapper').style.display = 'block';
-                showLogin();
-            };
+        
+            const backToTopBtn = document.getElementById('back-to-top-btn');
+            const scrollToBottomBtn = document.getElementById('scroll-to-bottom-btn');
+            if (backToTopBtn && scrollToBottomBtn) {
+                const stopSlowScroll = () => {
+                    if (slowScrollAnimationId) {
+                        cancelAnimationFrame(slowScrollAnimationId);
+                        slowScrollAnimationId = null;
+                    }
+                };
+                window.addEventListener('wheel', stopSlowScroll, { passive: true });
+                window.addEventListener('touchstart', stopSlowScroll, { passive: true });
+                window.onscroll = () => {
+                    const scrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
+                    const totalHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                    if (scrollPosition > 200) {
+                        backToTopBtn.classList.add('show');
+                    } else {
+                        backToTopBtn.classList.remove('show');
+                    }
+                    if (scrollPosition < totalHeight - 200) {
+                        scrollToBottomBtn.classList.add('show');
+                    } else {
+                        scrollToBottomBtn.classList.remove('show');
+                        stopSlowScroll();
+                    }
+                };
+                backToTopBtn.addEventListener('click', () => {
+                    stopSlowScroll();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+                scrollToBottomBtn.addEventListener('click', () => {
+                    stopSlowScroll(); 
+                    const startPosition = window.scrollY;
+                    const distance = document.documentElement.scrollHeight - startPosition - window.innerHeight;
+                    if (distance <= 0) return;
+                    const scrollSpeed = 10;
+                    let currentPosition = startPosition;
+                    const step = () => {
+                        currentPosition += scrollSpeed;
+                        window.scrollTo(0, currentPosition);
+                        if (currentPosition < document.documentElement.scrollHeight - window.innerHeight) {
+                            slowScrollAnimationId = requestAnimationFrame(step);
+                        } else {
+                            slowScrollAnimationId = null;
+                        }
+                    };
+                    slowScrollAnimationId = requestAnimationFrame(step);
+                });
+            }
         
             auth.onAuthStateChanged(async (user) => {
                 currentUser = user;
-                const hasLocalData = (localStorage.getItem('items') || '[]').length > 2 || (localStorage.getItem('sections') || '[]').length > 2;
-            
-                const proceedToApp = () => {
-                    if (user) {
-                        showMainApp();
-                    } else {
-                        if (hasLocalData) {
-                            showToast('আপনি এখন অফলাইনে আছেন।', 'warning');
-                            showMainApp();
-                        } else {
-                            showInitialLogin();
-                            showToast('অফলাইন ডেটা নেই, অনুগ্রহ করে অনলাইনে এসে লগইন করুন।', 'error');
-                        }
-                    }
-                };
-            
-                const checkVersionAndRun = async () => {
-                    const isOnline = await checkOnlineStatus();
-                    if (isOnline && getDbPath()) {
+        
+                const runMainApp = async () => {
+                    const dbPath = getDbPath();
+                    if (navigator.onLine && dbPath) {
                         try {
-                            const settingsDoc = await getDbPath().collection('app_state').doc('settings').get();
+                            const settingsDoc = await dbPath.collection('app_state').doc('settings').get();
                             if (settingsDoc.exists) {
                                 onlineAppVersion = settingsDoc.data().app_version;
                             }
@@ -5581,81 +5705,60 @@
                             console.error("Error fetching app version:", error);
                         }
                     }
-            
+        
                     if (onlineAppVersion && onlineAppVersion !== CURRENT_APP_VERSION) {
                         document.getElementById('forceUpdateModal').style.display = 'flex';
                         document.getElementById('update-now-btn').onclick = () => {
                             window.location.reload(true);
                         };
                     } else {
-                        proceedToApp();
+                        showApp();
                     }
                 };
-            
-                checkVersionAndRun();
-            });
-                const backToTopBtn = document.getElementById('back-to-top-btn');
-                const scrollToBottomBtn = document.getElementById('scroll-to-bottom-btn');
-                
-                if (backToTopBtn && scrollToBottomBtn) {
-                    const stopSlowScroll = () => {
-                        if (slowScrollAnimationId) {
-                            cancelAnimationFrame(slowScrollAnimationId);
-                            slowScrollAnimationId = null;
-                        }
-                    };
-                
-                    window.addEventListener('wheel', stopSlowScroll, { passive: true });
-                    window.addEventListener('touchstart', stopSlowScroll, { passive: true });
-                
-                    window.onscroll = () => {
-                        const scrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
-                        const totalHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-                
-                        if (scrollPosition > 200) {
-                            backToTopBtn.classList.add('show');
-                        } else {
-                            backToTopBtn.classList.remove('show');
-                        }
-                
-                        if (scrollPosition < totalHeight - 200) {
-                            scrollToBottomBtn.classList.add('show');
-                        } else {
-                            scrollToBottomBtn.classList.remove('show');
-                            stopSlowScroll();
-                        }
-                    };
-                
-                    backToTopBtn.addEventListener('click', () => {
-                        stopSlowScroll();
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    });
-                
-                    scrollToBottomBtn.addEventListener('click', () => {
-                        stopSlowScroll(); 
-                        
-                        const startPosition = window.scrollY;
-                        const distance = document.documentElement.scrollHeight - startPosition - window.innerHeight;
-                        if (distance <= 0) return;
-                
-                        const scrollSpeed = 10;
-                        let currentPosition = startPosition;
-                
-                        const step = () => {
-                            currentPosition += scrollSpeed;
-                            window.scrollTo(0, currentPosition);
-                
-                            if (currentPosition < document.documentElement.scrollHeight - window.innerHeight) {
-                                slowScrollAnimationId = requestAnimationFrame(step);
-                            } else {
-                                slowScrollAnimationId = null;
-                            }
-                        };
-                
-                        slowScrollAnimationId = requestAnimationFrame(step);
-                    });
+        
+                if (user) {
+                    runMainApp();
+                } else {
+                    const hasLocalData = (localStorage.getItem('items') || '[]').length > 2 || (localStorage.getItem('sections') || '[]').length > 2;
+                    if (hasLocalData) {
+                        showToast('আপনি এখন অফলাইনে আছেন।', 'warning');
+                        showApp();
+                    } else {
+                        showLogin();
+                    }
                 }
+            });
         });
+        
+        function showApp() {
+            document.getElementById('main-app-wrapper').style.display = 'block';
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+            document.getElementById('auth-modal-overlay').style.display = 'none';
+            document.getElementById('main-app-wrapper').style.filter = 'none';
+            document.getElementById('main-app-wrapper').style.pointerEvents = 'auto';
+        
+            if (currentUser && getDbPath()) {
+                listenForLiveUpdates();
+            } else {
+                offlineDB.init();
+            }
+        }
+        
+        function showLogin() {
+            document.getElementById('main-app-wrapper').style.display = 'block';
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden';
+            document.getElementById('auth-modal-overlay').style.display = 'flex';
+            document.getElementById('main-app-wrapper').style.filter = 'blur(5px)';
+            document.getElementById('main-app-wrapper').style.pointerEvents = 'none';
+            detachListeners();
+            allItems = [], sections = [], users = [], ledger = [], archivedReports = [];
+            renderInventoryPage();
+            renderUsersPage();
+            renderArchivedReports();
+            updateSlidingNotifications();
+        }
 
     </script>
 </body>
