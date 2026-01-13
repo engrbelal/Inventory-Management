@@ -711,6 +711,46 @@
             height: auto;
             max-height: 90vh;
         }
+        .urgent-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #e4000f;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+            animation: urgent-dot-pulse 1.5s infinite;
+        }
+        
+        @keyframes urgent-dot-pulse {
+            0% {
+                transform: scale(0.9);
+                box-shadow: 0 0 0 0 rgba(228, 0, 15, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 8px rgba(228, 0, 15, 0);
+            }
+            100% {
+                transform: scale(0.9);
+                box-shadow: 0 0 0 0 rgba(228, 0, 15, 0);
+            }
+        }
+        
+        .clear-urgent-icon {
+            display: inline-block;
+            margin-left: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            opacity: 0.7;
+            transition: opacity 0.2s, transform 0.2s;
+            vertical-align: middle;
+        }
+        
+        .clear-urgent-icon:hover {
+            opacity: 1;
+            transform: scale(1.2);
+        }
 
     </style>
 </head>
@@ -3051,8 +3091,19 @@
                 
                 const highlightClass = (searchTerm && lowerItemName.includes(searchTerm)) ? 'search-highlight' : '';
                 
+                // --- নতুন: জরুরী লেনদেন আছে কিনা তা পরীক্ষা করা ---
+                const hasUnclearedUrgent = ledger.some(entry => 
+                    entry.itemId === item.id && entry.isUrgent === true
+                );
+                const urgentIndicatorHTML = hasUnclearedUrgent 
+                    ? '<span class="urgent-dot" title="এই আইটেমের একটি অমীমাংসিত জরুরী লেনদেন আছে।">🔴</span>' 
+                    : '';
+                // --- লজিক শেষ ---
+                    
                 return `<tr class="${stockClass} ${highlightClass}" data-highlight-id="${item.id}">
-                            <td data-label="আইটেমের নাম" class="item-name-cell" data-item-id="${item.id}">${item.name} <span class="stock-icon">${stockIcon}</span></td>
+                            <td data-label="আইটেমের নাম" class="item-name-cell" data-item-id="${item.id}">
+                                ${urgentIndicatorHTML} ${item.name} <span class="stock-icon">${stockIcon}</span>
+                            </td>
                             <td data-label="বর্তমান স্টক" class="stock-cell" 
                                 data-item-id="${item.id}" 
                                 data-item-name="${item.name.replace(/"/g, '&quot;')}" 
@@ -3217,8 +3268,18 @@
             sortedUsers.forEach(user => {
                 const userRow = document.createElement('div');
                 userRow.className = 'user-row';
+            
+                // --- নতুন: ব্যবহারকারীর জন্য জরুরী লেনদেন পরীক্ষা করা ---
+                const hasUnclearedUrgent = ledger.some(entry => 
+                    entry.person === user.name && entry.isUrgent === true
+                );
+                const urgentIndicatorHTML = hasUnclearedUrgent 
+                    ? '<span class="urgent-dot" title="এই ব্যবহারকারীর একটি অমীমাংসিত জরুরী লেনদেন আছে।">🔴</span>' 
+                    : '';
+                // --- লজিক শেষ ---
+            
                 userRow.innerHTML = `
-                    <span class="user-name" onclick="showUserReport('${user.id}')">${user.name}</span>
+                    <span class="user-name" onclick="showUserReport('${user.id}')">${urgentIndicatorHTML} ${user.name}</span>
                     <button class="delete-btn" onclick="deleteUser('${user.id}')">🗑️</button>
                 `;
                 userList.appendChild(userRow);
@@ -4275,27 +4336,36 @@
                 }
         
                 if (!isUrgent) {
-                    const ledgerQuery = await mainDocRef.collection('ledger').where('requisitionId', '==', requisitionIdAsNumber).get();
+                    const ledgerQuery = await mainDocRef.collection('ledger').where('requisitionId', '==', requisitionIdAsNumber).limit(1).get();
                     if (!ledgerQuery.empty) {
                         throw new Error(`রিকুইজিশন নম্বর '${requisitionValue}' ইতোমধ্যে ব্যবহার করা হয়েছে।`);
                     }
                 }
         
+                const itemRefs = itemsToProvide.map(item => mainDocRef.collection('items').doc(item.itemId));
+                const itemSnapshots = await Promise.all(itemRefs.map(ref => ref.get()));
+        
+                const itemsWithStock = itemSnapshots.map((snapshot, index) => {
+                    if (!snapshot.exists) {
+                        throw new Error(`'${itemsToProvide[index].itemName}' আইটেমটি ডাটাবেসে পাওয়া যায়নি।`);
+                    }
+                    return {
+                        ...itemsToProvide[index],
+                        currentStock: snapshot.data().quantity
+                    };
+                });
+        
+                for (const item of itemsWithStock) {
+                    if (item.currentStock < item.quantity) {
+                        throw new Error(`'${item.itemName}' আইটেমের অপর্যাপ্ত স্টক! (বর্তমান: ${item.currentStock})`);
+                    }
+                }
+        
                 await db.runTransaction(async (transaction) => {
-                    for (const itemData of itemsToProvide) {
+                    for (const itemData of itemsWithStock) {
                         const itemRef = mainDocRef.collection('items').doc(itemData.itemId);
-                        const itemSnapshot = await transaction.get(itemRef);
-        
-                        if (!itemSnapshot.exists) {
-                            throw new Error(`'${itemData.itemName}' আইটেমটি ডাটাবেসে পাওয়া যায়নি।`);
-                        }
-        
-                        const currentStock = itemSnapshot.data().quantity;
-                        if (currentStock < itemData.quantity) {
-                            throw new Error(`'${itemData.itemName}' আইটেমের অপর্যাপ্ত স্টক!`);
-                        }
-        
-                        const newStock = currentStock - itemData.quantity;
+                        const newStock = itemData.currentStock - itemData.quantity;
+                        
                         transaction.update(itemRef, { quantity: newStock });
         
                         const ledgerRef = mainDocRef.collection('ledger').doc();
@@ -4593,48 +4663,78 @@
               clearAllBtn.style.display = 'none';
           } else {
               clearAllBtn.style.display = 'inline-block';
-              let tableHTML = '<div class="table-container"><table><thead><tr><th>তারিখ</th><th>আইটেম</th><th>পরিমাণ</th></tr></thead><tbody>';
+              let tableHTML = `<div class="table-container">
+                                  <table>
+                                      <thead>
+                                          <tr>
+                                              <th style="width: 15%;">তারিখ</th>
+                                              <th style="width: 70%;">আইটেম</th>
+                                              <th style="width: 15%;">পরিমাণ</th>
+                                          </tr>
+                                      </thead>
+                                      <tbody>`;
+                  
               userLedger.forEach(entry => {
                   const item = allItems.find(i => i.id === entry.itemId);
                   const unit = item ? (item.unit || 'পিস') : 'পিস';
-                  
+          
+                  // --- নতুন: তারিখ ফরম্যাট পরিবর্তন (yy/mm/dd) ---
+                  const date = new Date(entry.date);
+                  const shortDate = date.toLocaleDateString('bn-BD', {
+                      year: '2-digit',
+                      month: '2-digit',
+                      day: '2-digit'
+                  });
+          
+                  // --- নতুন: শর্তসাপেক্ষে "ক্লিয়ার" আইকন তৈরি করা ---
+                  let clearIconHTML = '';
+                  if (entry.isUrgent) {
+                      clearIconHTML = `
+                          <span class="clear-urgent-icon" onclick="event.stopPropagation(); clearUrgentFlag('${entry.id}')" title="এই জরুরী লেনদেনটি ক্লিয়ার করুন">
+                              ✅
+                          </span>`;
+                  }
+                      
                   tableHTML += `
-                      <tr class="user-report-row" data-ledger-id="${entry.id}" style="cursor: pointer;">
-                          <td>${new Date(entry.date).toLocaleDateString('bn-BD')}</td>
-                          <td>${entry.itemName}</td>
+                      <tr class="user-report-row" data-ledger-id="${entry.id}" style="${entry.isUrgent ? 'background-color: var(--level-low-bg);' : ''}">
+                          <td>${shortDate}</td>
+                          <td>${entry.itemName} ${clearIconHTML}</td>
                           <td>${toBengaliNumber(Math.abs(entry.change))} ${unit}</td>
                       </tr>
                   `;
               });
               tableHTML += '</tbody></table></div>';
               reportBody.innerHTML = tableHTML;
-      
+          
               const rows = reportBody.querySelectorAll('.user-report-row');
               rows.forEach(row => {
                   let pressTimer;
                   const ledgerId = row.getAttribute('data-ledger-id');
-      
+          
                   const startPress = (e) => {
+                      // "ক্লিয়ার" আইকনে ক্লিক হলে লং-প্রেস কাজ করবে না
+                      if (e.target.classList.contains('clear-urgent-icon')) return;
+                          
                       pressTimer = setTimeout(() => {
                           e.preventDefault();
                           e.stopPropagation();
                           deleteSingleUserTransaction(ledgerId, userId);
                       }, 1000);
                   };
-      
+          
                   const cancelPress = () => {
                       clearTimeout(pressTimer);
                   };
-      
+          
                   row.addEventListener('mousedown', startPress);
                   row.addEventListener('touchstart', startPress, { passive: false });
-                  
                   row.addEventListener('mouseup', cancelPress);
                   row.addEventListener('mouseleave', cancelPress);
                   row.addEventListener('touchend', cancelPress);
                   row.addEventListener('touchmove', cancelPress);
               });
           }
+
           openModal('userReportModal');
       }
 
