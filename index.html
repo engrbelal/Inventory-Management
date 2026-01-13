@@ -751,7 +751,14 @@
             opacity: 1;
             transform: scale(1.2);
         }
-
+        #pi-requisition-id.invalid {
+            border-color: var(--danger-color) !important;
+            box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+        }
+        #pi-requisition-id.valid {
+            border-color: var(--success-color) !important;
+            box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
+        }
     </style>
 </head>
 <body>
@@ -1044,8 +1051,9 @@
                         <div class="form-group" style="margin: 0; padding: 0; box-shadow: none;">
                             <select id="pi-user-main"></select>
                         </div>
-                        <div class="form-group" id="requisition-id-group" style="margin: 0; padding: 0; box-shadow: none;">
-                            <input type="text" id="pi-requisition-id" autocomplete="off" placeholder="রিকুইজিশন নম্বর">
+                        <div class="form-group" id="requisition-id-group" style="margin: 0; padding: 0; box-shadow: none; position: relative;">
+                            <input type="text" id="pi-requisition-id" autocomplete="off" placeholder="রিকুইজিশন নম্বর" onkeyup="checkRequisitionId()">
+                            <div id="req-id-status" style="position: absolute; top: 100%; left: 0; width: 100%; font-size: 11px; font-weight: 600; margin-top: 2px;"></div>
                         </div>
                     </div>
                 
@@ -4205,6 +4213,12 @@
             toggleRequisitionIdField(false); 
         
             addProvideItemForm();
+            // --- নতুন কোড এখানে যোগ করুন ---
+            const reqInput = document.getElementById('pi-requisition-id');
+            reqInput.value = ''; // ইনপুট বক্স খালি করুন
+            reqInput.classList.remove('valid', 'invalid');
+            document.getElementById('req-id-status').textContent = '';
+            // --- নতুন কোড শেষ ---            
             openModal('provideItemModal');
         
             const modal = document.getElementById('provideItemModal');
@@ -4218,6 +4232,72 @@
                     filterItems(firstSearchInput, true);
                 }, 100); 
             }
+        }
+        let reqCheckDebounceTimer;
+        
+        function checkRequisitionId() {
+            const reqInput = document.getElementById('pi-requisition-id');
+            const statusDiv = document.getElementById('req-id-status');
+            const reqValue = reqInput.value.trim();
+        
+            reqInput.classList.remove('valid', 'invalid');
+            statusDiv.textContent = '';
+        
+            if (!reqValue) {
+                return;
+            }
+        
+            clearTimeout(reqCheckDebounceTimer);
+            reqCheckDebounceTimer = setTimeout(async () => {
+                const requisitionIdAsNumber = parseInt(reqValue, 10);
+        
+                if (isNaN(requisitionIdAsNumber)) {
+                    statusDiv.textContent = 'অনুগ্রহ করে সঠিক সংখ্যা দিন।';
+                    statusDiv.style.color = 'var(--danger-color)';
+                    reqInput.classList.add('invalid');
+                    return;
+                }
+        
+                statusDiv.textContent = 'চেক করা হচ্ছে...';
+                statusDiv.style.color = '#6c757d';
+        
+                try {
+                    const dbPath = getDbPath();
+                    if (!dbPath) {
+                        throw new Error("লগইন করা নেই।");
+                    }
+        
+                    const localMatch = ledger.find(entry => entry.requisitionId === requisitionIdAsNumber);
+                    if (localMatch) {
+                        statusDiv.textContent = 'এই নম্বরটি ইতোমধ্যে ব্যবহৃত হয়েছে।';
+                        statusDiv.style.color = 'var(--danger-color)';
+                        reqInput.classList.add('invalid');
+                        return;
+                    }
+        
+                    if (navigator.onLine) {
+                        const ledgerQuery = await dbPath.collection('ledger').where('requisitionId', '==', requisitionIdAsNumber).limit(1).get();
+                        if (!ledgerQuery.empty) {
+                            statusDiv.textContent = 'এই নম্বরটি ইতোমধ্যে ব্যবহৃত হয়েছে।';
+                            statusDiv.style.color = 'var(--danger-color)';
+                            reqInput.classList.add('invalid');
+                        } else {
+                            statusDiv.textContent = 'নম্বরটি উপলব্ধ আছে।';
+                            statusDiv.style.color = 'var(--success-color)';
+                            reqInput.classList.add('valid');
+                        }
+                    } else {
+                        statusDiv.textContent = 'নম্বরটি উপলব্ধ (অফলাইন)।';
+                        statusDiv.style.color = 'var(--success-color)';
+                        reqInput.classList.add('valid');
+                    }
+        
+                } catch (error) {
+                    console.error("Requisition check failed:", error);
+                    statusDiv.textContent = 'চেক করতে সমস্যা হয়েছে।';
+                    statusDiv.style.color = 'var(--danger-color)';
+                }
+            }, 500);
         }
 
         function addProvideItemForm() {
