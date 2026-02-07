@@ -42,11 +42,49 @@
             font-size: var(--base-font-size);
         }
         .header {
-            position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
-            background: var(--primary-gradient); color: var(--light-text);
-            padding: 15px 20px; text-align: center; box-shadow: var(--shadow);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            background: var(--primary-gradient);
+            color: var(--light-text);
+            padding: 15px 20px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            box-sizing: border-box;
         }
-        .header h1 { margin: 0; font-size: 18px; }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            display: inline-block;
+        }
+        
+        .sync-status-indicator {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 10px;
+            border-radius: 15px;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.5s, background-color 0.5s;
+        }
+        
+        .sync-status-indicator.syncing {
+            background-color: rgba(255, 193, 7, 0.8);
+            opacity: 1;
+        }
+        
+        .sync-status-indicator.synced {
+            background-color: rgba(40, 167, 69, 0.8);
+            opacity: 1;
+        }
+
         .main-nav {
             position: fixed; top: 54px; left: 0; width: 100%; z-index: 999;
             display: flex; background-color: #ffffff; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -415,6 +453,9 @@
         .select2-container--open {
             z-index: 9999 !important;
         }
+        #itemMergeModal .select2-container--open {
+            z-index: 1052 !important;
+        }        
         @keyframes highlight-animation {
             from { background-color: #fff9c4; }
             to { background-color: transparent; }
@@ -759,6 +800,58 @@
             border-color: var(--success-color) !important;
             box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
         }
+        #variantStockEditorModal .modal-footer {
+            justify-content: flex-end;
+        }
+        #variantRequisitionModal .modal-footer {
+            justify-content: flex-end;
+        }        
+        #urgent-items-container .urgent-group {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow);
+        }
+        
+        #urgent-items-container .urgent-group-header {
+            padding: 10px 12px;
+            background-color: #f1f3f5;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-color);
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        
+        #urgent-items-container .urgent-item-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f1f1;
+        }
+        
+        #urgent-items-container .urgent-item-row:last-child {
+            border-bottom: none;
+        }
+        
+        #urgent-items-container .urgent-item-row input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+        }
+        
+        #urgent-items-container .urgent-item-details {
+            flex-grow: 1;
+            font-size: 13px;
+        }   
+        .quantity-feedback {
+            font-size: 11px;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 4px;
+            height: 14px;
+            transition: color 0.3s ease;
+        }
+
     </style>
 </head>
 <body>
@@ -818,7 +911,7 @@
     <!-- Main App Wrapper -->
     <div id="main-app-wrapper">
          
-        <header class="header"><h1>ইনভেন্টরি ম্যানেজমেন্ট</h1></header>
+        <header class="header">     <h1>ইনভেন্টরি ম্যানেজমেন্ট</h1>     <div id="sync-status" class="sync-status-indicator"></div> </header>
         <nav class="main-nav">
             <div class="nav-tab active" onclick="showPage('inventory')">ইনভেন্টরি</div>
             <div class="nav-tab" onclick="showPage('reports')">রিপোর্ট ও সেটিংস</div>
@@ -831,6 +924,11 @@
                     <button class="add-item-btn" onclick="openItemAddModal()">নতুন আইটেম যোগ করুন ➕</button>
                     <button class="provide-item-btn" onclick="openProvideItemModal()">আইটেম প্রদান করুন ➖</button>
                 </div>
+                <div id="urgent-clear-bar" style="display: none; text-align: center; margin-bottom: 15px;">
+                    <button id="open-urgent-clear-modal-btn" class="action-btn" style="background-color: var(--danger-color); width: auto; padding: 8px 15px; font-size: 12px;">
+                        অমীমাংসিত জরুরী লেনদেন ক্লিয়ার করুন
+                    </button>
+                </div>                
                 <div class="card">
                     <div class="form-group" style="margin-bottom: 0; box-shadow: none; padding: 5px;">
                         <input type="text" id="searchInput" autocomplete="off" onkeyup="renderInventoryPage()" placeholder="🔍 এখানে আইটেমের নাম লিখে সার্চ করুন..." style="font-size: 14px;">
@@ -926,18 +1024,42 @@
                 <!-- ৭. ব্যবহারকারী ম্যানেজমেন্ট -->
                 <div class="card">
                     <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
-                        <h2>ব্যবহারকারী ম্যানেজমেন্ট</h2>
+                        <h2>কর্মচারী ম্যানেজমেন্ট</h2>
                         <span class="toggle-icon collapsed">▼</span>
                     </div>
                     <div class="card-body collapsible collapsed">
                         <form id="add-user-form" onsubmit="addNewUser(event)">
-                            <input type="text" id="new-user-name" autocomplete="off" placeholder="নতুন ব্যবহারকারীর নাম" required>
+                            <input type="text" id="new-user-name" autocomplete="off" placeholder="নতুন কর্মচারীর নাম" required>
                             <button type="submit" class="action-btn">যোগ করুন</button>
                         </form>
                         <div id="user-list" style="margin-top: 15px;"></div>
                     </div>
                 </div>
         
+                <div class="card">
+                    <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
+                        <h2>আইটেম একত্রিত করুন (Merge)</h2>
+                        <span class="toggle-icon collapsed">▼</span>
+                    </div>
+                    <div class="card-body collapsible collapsed">
+                        <p>একাধিক সাধারণ আইটেমকে একটি ভ্যারিয়েন্ট আইটেমে রূপান্তর করুন, কিন্তু তাদের লেজার রেকর্ড অক্ষত রাখুন।</p>
+                        <button class="action-btn" style="background-color: #fd7e14; width: 100%;" onclick="openItemMergeModal()">
+                            আইটেম মার্জ টুল খুলুন 🔧
+                        </button>
+                    </div>
+                </div>     
+                <div class="card">
+                    <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
+                        <h2>আইটেম বিভক্ত করুন (Split)</h2>
+                        <span class="toggle-icon collapsed">▼</span>
+                    </div>
+                    <div class="card-body collapsible collapsed">
+                        <p>একটি ভ্যারিয়েন্ট আইটেমকে ভেঙে একাধিক সাধারণ আইটেমে রূপান্তর করুন। প্রতিটি ভ্যারিয়েন্ট তার নিজস্ব স্টক নিয়ে একটি নতুন আইটেম হিসেবে তৈরি হবে।</p>
+                        <button class="action-btn" style="background-color: #17a2b8; width: 100%;" onclick="openItemSplitModal()">
+                            আইটেম স্প্লিট টুল খুলুন 🔧
+                        </button>
+                    </div>
+                </div>                
                 <!-- ৮. ডেটা ম্যানেজমেন্ট -->
                 <div class="card">
                     <h2>ডেটা ম্যানেজমেন্ট</h2>
@@ -1051,12 +1173,13 @@
                         <div class="form-group" style="margin: 0; padding: 0; box-shadow: none;">
                             <select id="pi-user-main"></select>
                         </div>
-                        <div class="form-group" id="requisition-id-group" style="margin: 0; padding: 0; box-shadow: none; position: relative;">
-                            <input type="text" id="pi-requisition-id" autocomplete="off" placeholder="রিকুইজিশন নম্বর" onkeyup="checkRequisitionId()">
+                        <div class="form-group" id="requisition-id-group" style="margin: 0; padding: 0; box-shadow: none; position: relative; display: flex; align-items: center; gap: 5px;">
+                            <input type="text" id="pi-requisition-id" autocomplete="off" placeholder="রিকুইজিশন নম্বর" onkeyup="handleRequisitionSearchUI(this.value)" style="flex-grow: 1;">
+                            <button id="req-search-btn" onclick="searchRequisitionByNumber()" style="display: none; padding: 6px 10px; font-size: 14px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">🔍</button>
                             <div id="req-id-status" style="position: absolute; top: 100%; left: 0; width: 100%; font-size: 11px; font-weight: 600; margin-top: 2px;"></div>
                         </div>
                     </div>
-                
+                    <div id="requisition-search-result-container" style="margin-bottom: 15px;"></div>                
                     <div id="provide-items-container">
                         <!-- নতুন আইটেম ফর্মগুলো এখানে যুক্ত হবে -->
                     </div>
@@ -1335,7 +1458,116 @@
             </div>
         </div>
     </div>
-     
+    <div id="variantStockEditorModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 id="variant-editor-title"></h2>
+                <button class="close-btn" onclick="closeModal('variantStockEditorModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="variant-editor-body">
+                <!-- ভ্যারিয়েন্ট এবং ইউনিট ইনপুট এখানে আসবে -->
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button onclick="addVariantToEditor()" class="action-btn" style="background: #0056b3; font-size: 12px; padding: 8px 12px;">নতুন ভ্যারিয়েন্ট ➕</button>
+                <button id="save-variant-stock-btn" class="action-btn" style="background: var(--success-color);">সেভ করুন</button>
+            </div>
+        </div>
+    </div>
+     <div id="variantRequisitionModal" class="modal-overlay" style="z-index: 1052;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2 id="variant-req-title"></h2>
+                <button class="close-btn" onclick="closeModal('variantRequisitionModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="variant-req-body">
+            </div>
+            <div class="modal-footer">
+                <button id="save-variant-req-btn" class="action-btn" style="background: var(--success-color);">সেভ করুন</button>
+            </div>
+        </div>
+    </div>
+   <div id="urgentClearModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 600px;">
+          <div class="modal-header">
+              <h2>অমীমাংসিত জরুরী লেনদেন</h2>
+              <button class="close-btn" onclick="closeModal('urgentClearModal')">&times;</button>
+          </div>
+          <div class="modal-body" id="urgent-items-container">
+              <!-- জরুরী আইটেমগুলো এখানে লোড হবে -->
+          </div>
+          <div class="modal-footer" style="display: block;">
+              <div class="form-group" style="padding: 10px; box-shadow: none; background: #f8f9fa;">
+                  <label for="uc-requisition-id" style="font-weight: 600;">সিলেক্ট করা আইটেমগুলোর জন্য রিকুইজিশন নম্বর দিন:</label>
+                  <input type="text" id="uc-requisition-id" autocomplete="off" placeholder="রিকুইজিশন নম্বর" onkeyup="checkUrgentRequisitionId()">
+                  <div id="uc-req-id-status" style="font-size: 11px; font-weight: 600; margin-top: 4px; height: 14px;"></div>
+              </div>
+              <button id="clear-selected-urgent-btn" class="action-btn" style="width: 100%; background: var(--success-color);">
+                  সিলেক্টেড আইটেম ক্লিয়ার করুন
+              </button>
+          </div>
+      </div>
+  </div>   
+  <div id="itemMergeModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 700px;">
+          <div class="modal-header">
+              <h2>আইটেম একত্রিত করে ভ্যারিয়েন্ট তৈরি করুন</h2>
+              <button class="close-btn" onclick="closeModal('itemMergeModal')">&times;</button>
+          </div>
+          <div class="modal-body">
+              <p style="background: var(--level-low-bg); padding: 10px; border-radius: 6px; font-size: 13px; line-height: 1.6;">
+                  <strong>গুরুত্বপূর্ণ:</strong> এই টুলটি ব্যবহার করে আপনি একাধিক সাধারণ আইটেমকে একটিমাত্র ভ্যারিয়েন্ট আইটেমে রূপান্তর করতে পারবেন।
+              </p>
+              <div class="form-group">
+                  <label>১. মূল আইটেম বাছাই করুন (এর নাম, সেকশন ও ইউনিট ঠিক থাকবে)</label>
+                  <select id="base-item-select" class="select2-basic"></select>
+              </div>
+              <div class="form-group">
+                  <label>২. অন্যান্য আইটেমগুলো বাছাই করুন (এগুলো মূল আইটেমের সাথে যুক্ত হবে)</label>
+                  <select id="merge-items-select" class="select2-basic" multiple="multiple"></select>
+              </div>
+              <div class="form-group">
+                  <label>৩. নতুন (পরিষ্কার) নাম দিন</label>
+                  <input type="text" id="new-item-name" autocomplete="off" placeholder="যেমন: Heat Shrink Tube 16mm">
+              </div>
+              <!-- নতুন যুক্ত হওয়া অংশ -->
+              <div id="merge-variant-keys-container" class="form-group" style="display: none;">
+                  <label>৪. প্রতিটি ভ্যারিয়েন্টের জন্য সংক্ষিপ্ত নাম (Key) দিন</label>
+                  <div id="merge-keys-list" style="display: grid; gap: 10px; margin-top: 5px;">
+                      <!-- Key ইনপুটগুলো এখানে জাভাস্ক্রিপ্ট দিয়ে তৈরি হবে -->
+                  </div>
+              </div>
+          </div>
+          <div class="modal-footer" style="justify-content: flex-end;">
+              <button onclick="closeModal('itemMergeModal')" style="background-color: #6c757d;">বাতিল</button>
+              <button onclick="executeItemMerge()" style="background: var(--success-color); color: white;">মার্জ করুন</button>
+          </div>
+      </div>
+  </div>
+  <div id="itemSplitModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 600px;">
+          <div class="modal-header">
+              <h2>ভ্যারিয়েন্ট আইটেম বিভক্ত করুন</h2>
+              <button class="close-btn" onclick="closeModal('itemSplitModal')">&times;</button>
+          </div>
+          <div class="modal-body">
+              <p style="background: var(--level-low-bg); padding: 10px; border-radius: 6px; font-size: 13px; line-height: 1.6;">
+                  <strong>গুরুত্বপূর্ণ:</strong> এখান থেকে একটি ভ্যারিয়েন্ট আইটেম বাছাই করুন। "বিভক্ত করুন" বাটনে ক্লিক করলে, ওই আইটেমের প্রতিটি ভ্যারিয়েন্ট তাদের নিজ নিজ স্টক নিয়ে একটি করে নতুন সাধারণ আইটেম হিসেবে তৈরি হবে এবং মূল ভ্যারিয়েন্ট আইটেমটি মুছে যাবে।
+              </p>
+              <div class="form-group">
+                  <label>ভ্যারিয়েন্ট আইটেম বাছাই করুন</label>
+                  <select id="variant-item-select" class="select2-basic"></select>
+              </div>
+              <div id="split-preview-container" style="margin-top: 15px; display: none;">
+                  <h4>প্রিভিউ (যে আইটেমগুলো তৈরি হবে):</h4>
+                  <ul id="split-preview-list" style="list-style: none; padding: 0; background: #fff; border-radius: 6px; border: 1px solid #ddd;"></ul>
+              </div>
+          </div>
+          <div class="modal-footer" style="justify-content: flex-end;">
+              <button onclick="closeModal('itemSplitModal')" style="background-color: #6c757d;">বাতিল</button>
+              <button onclick="executeItemSplit()" style="background: var(--danger-color); color: white;">বিভক্ত করুন</button>
+          </div>
+      </div>
+  </div>  
     <script>
         // --- Global State & Constants ---
         const firebaseConfig = {
@@ -1371,6 +1603,7 @@
         ];
         const CENTRAL_DB_ID = "grgl_central_store";
         const SECURITY_PIN = "0000";
+        const SPECIAL_CLEAR_PIN = "9999";
         let resolvePinPromise = null;   
         const CURRENT_APP_VERSION = "2.1.1";
         let onlineAppVersion = null;
@@ -1550,14 +1783,33 @@
             const quantity = toBengaliNumber(Math.abs(entry.change));
             const item = allItems.find(i => i.id === entry.itemId);
             const unit = item ? (item.unit || 'পিস') : 'পিস';
-            const itemName = entry.itemName;
+            
+            const itemNameForDisplay = entry.originalItemName || entry.itemName;
+        
+            let detailsText = '';
+            if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
+                const detailsParts = Object.entries(entry.details)
+                    .map(([key, value]) => `${key}: ${toBengaliNumber(value)}`)
+                    .join(', ');
+                detailsText = ` <strong style="color: #0056b3;">(${detailsParts})</strong>`;
+            }
         
             if (entry.change > 0) {
-                return `${datePart} ${time}, ${quantity} ${unit} ${itemName} স্টকে যোগ হয়েছে।`;
+                const actionText = entry.person === 'সংশোধন' ? 'স্টক আপডেট হয়েছে' : 'স্টকে যোগ হয়েছে';
+                return `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} ${actionText}।${detailsText}`;
             } else {
-                return `${datePart} ${time}, ${quantity} ${unit} ${itemName} নিয়েছে ${entry.person}।`;
+                let requisitionBadge = '';
+                if (entry.requisitionId) {
+                    if (entry.requisitionId.toString() === SPECIAL_CLEAR_PIN) {
+                        requisitionBadge = ` <span style="background-color: var(--warning-color); color: var(--dark-text); padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 5px;">বিশেষ ক্লিয়ারেন্স</span>`;
+                    } else {
+                        requisitionBadge = ` <span style="background-color: #e9ecef; color: #495057; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px;">#${toBengaliNumber(entry.requisitionId)}</span>`;
+                    }
+                }
+                return `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} নিয়েছে ${entry.person}।${detailsText}${requisitionBadge}`;
             }
         };
+
         function showCustomPrompt({ title, message, defaultValue, step = 'any' }) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('custom-prompt-modal');
@@ -1673,33 +1925,54 @@
             unsubscribeListeners = [];
         
             const collections = ['sections', 'items', 'app_users', 'ledger', 'archivedReports'];
-            const stateArrays = {
+            let syncCounter = 0;
+            const totalCollections = collections.length;
+            const syncStatusEl = document.getElementById('sync-status');
+        
+            const checkSyncComplete = () => {
+                syncCounter++;
+                if (syncCounter >= totalCollections) {
+                    syncStatusEl.textContent = 'আপডেটেড';
+                    syncStatusEl.className = 'sync-status-indicator synced';
+                    setTimeout(() => {
+                        syncStatusEl.style.opacity = '0';
+                    }, 2000);
+                }
+            };
+        
+            const stateUpdaters = {
                 sections: (data) => {
                     sections = data;
+                    localStorage.setItem('sections', JSON.stringify(data));
                     initializeSortableList();
                     populateItemSortSectionDropdown();
                     renderInventoryPage();
-                    localStorage.setItem('sections', JSON.stringify(data));
+                    checkSyncComplete();
                 },
                 items: (data) => {
                     allItems = data;
+                    localStorage.setItem('items', JSON.stringify(data));
                     renderInventoryPage();
                     updateSlidingNotifications();
-                    localStorage.setItem('items', JSON.stringify(data));
+                    checkSyncComplete();
                 },
                 app_users: (data) => {
                     users = data;
-                    renderUsersPage();
                     localStorage.setItem('app_users', JSON.stringify(data));
+                    renderUsersPage();
+                    checkSyncComplete();
                 },
                 ledger: (data) => {
                     ledger = data;
                     localStorage.setItem('ledger', JSON.stringify(data));
+                    updateUrgentClearButtonVisibility();
+                    checkSyncComplete();
                 },
                 archivedReports: (data) => {
                     archivedReports = data;
-                    renderArchivedReports();
                     localStorage.setItem('archivedReports', JSON.stringify(data));
+                    renderArchivedReports();
+                    checkSyncComplete();
                 }
             };
         
@@ -1707,7 +1980,7 @@
                 collections.forEach(col => {
                     const unsubscribe = dbPath.collection(col).onSnapshot((snapshot) => {
                         const dataArray = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        stateArrays[col](dataArray);
+                        stateUpdaters[col](dataArray);
                     });
                     unsubscribeListeners.push(unsubscribe);
                 });
@@ -1801,6 +2074,353 @@
                 updateSlidingNotifications();
             }
         };
+
+        function openItemMergeModal() {
+            const baseSelect = $('#base-item-select');
+            const mergeSelect = $('#merge-items-select');
+            const keysContainer = document.getElementById('merge-variant-keys-container');
+            const keysList = document.getElementById('merge-keys-list');
+            const modalElement = $('#itemMergeModal');
+        
+            baseSelect.empty().off();
+            mergeSelect.empty().off();
+            
+            keysContainer.style.display = 'none';
+            keysList.innerHTML = '';
+        
+            const itemsForSelect = allItems
+                .filter(item => !Array.isArray(item.quantity))
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(item => ({ id: item.id, text: `${item.name} (স্টক: ${toBengaliNumber(item.quantity)})` }));
+        
+            baseSelect.select2({
+                data: itemsForSelect,
+                placeholder: '-- মূল আইটেম বাছাই করুন --',
+                dropdownParent: modalElement
+            });
+        
+            mergeSelect.select2({
+                data: [],
+                placeholder: '-- প্রথমে মূল আইটেম বাছাই করুন --',
+                dropdownParent: modalElement
+            });
+        
+            const updateKeysUI = () => {
+                const baseId = baseSelect.val();
+                const mergeIds = mergeSelect.val() || [];
+                const allSelectedIds = [baseId, ...mergeIds].filter(Boolean);
+        
+                keysList.innerHTML = '';
+                if (allSelectedIds.length > 1) {
+                    keysContainer.style.display = 'block';
+                    allSelectedIds.forEach(id => {
+                        const item = allItems.find(i => i.id === id);
+                        if (item) {
+                            const match = item.name.match(/\(([^)]+)\)/) || item.name.match(/(\w+)$/);
+                            let suggestedKey = match ? (match[1] || match[2] || '').trim() : '';
+                            
+                            const keyRow = document.createElement('div');
+                            keyRow.style.display = 'grid';
+                            keyRow.style.gridTemplateColumns = '2fr 1fr';
+                            keyRow.style.alignItems = 'center';
+                            keyRow.innerHTML = `
+                                <span style="font-weight: 500;">${item.name}:</span>
+                                <input type="text" class="variant-key-input" data-item-id="${item.id}" value="${suggestedKey}" placeholder="Key (যেমন: R)" style="padding: 6px;">
+                            `;
+                            keysList.appendChild(keyRow);
+                        }
+                    });
+                } else {
+                    keysContainer.style.display = 'none';
+                }
+            };
+        
+            baseSelect.on('change', function() {
+                const selectedBaseId = $(this).val();
+                
+                const filteredItemsForMerge = itemsForSelect.filter(item => item.id !== selectedBaseId);
+                
+                mergeSelect.empty().select2({
+                    data: filteredItemsForMerge,
+                    placeholder: '-- মার্জ করার জন্য আইটেম বাছাই করুন --',
+                    dropdownParent: modalElement
+                });
+                
+                updateKeysUI();
+        
+                setTimeout(() => {
+                    mergeSelect.select2('open');
+                }, 150);
+            });
+        
+            mergeSelect.on('change', updateKeysUI);
+        
+            baseSelect.on('select2:open', () => {
+                const searchField = document.querySelector('.select2-container--open .select2-search__field');
+                if (searchField) {
+                    setTimeout(() => {
+                        searchField.focus();
+                    }, 50);
+                }
+            });
+        
+            mergeSelect.on('select2:open', () => {
+                const searchField = document.querySelector('.select2-container--open .select2-search__field');
+                if (searchField) {
+                    setTimeout(() => {
+                        searchField.focus();
+                    }, 50);
+                }
+            });
+        
+            document.getElementById('new-item-name').value = '';
+            openModal('itemMergeModal');
+        }
+
+        async function executeItemMerge() {
+            const baseItemId = $('#base-item-select').val();
+            const itemsToMergeIds = $('#merge-items-select').val() || [];
+            const newItemName = document.getElementById('new-item-name').value.trim();
+            const variantKeyInputs = document.querySelectorAll('#merge-variant-keys-container .variant-key-input');
+        
+            if (!baseItemId || itemsToMergeIds.length === 0 || !newItemName) {
+                return showToast('অনুগ্রহ করে সকল ফিল্ড সঠিকভাবে পূরণ করুন।', 'error');
+            }
+        
+            if (itemsToMergeIds.includes(baseItemId)) {
+                return showToast('মূল আইটেম এবং মার্জ করার আইটেম একই হতে পারে না।', 'error');
+            }
+        
+            let allKeysValid = true;
+            variantKeyInputs.forEach(input => {
+                if (!input.value.trim()) {
+                    allKeysValid = false;
+                }
+            });
+        
+            if (!allKeysValid) {
+                return showToast('অনুগ্রহ করে প্রতিটি ভ্যারিয়েন্টের জন্য একটি সংক্ষিপ্ত নাম (Key) দিন।', 'error');
+            }
+        
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            if (!confirm(`আপনি কি নিশ্চিত যে ${toBengaliNumber(itemsToMergeIds.length + 1)}টি আইটেমকে '${newItemName}' নামে একত্রিত করতে চান? এই কাজটি পুরনো আইটেমগুলো মুছে ফেলবে এবং তাদের লেজার নতুন আইটেমের সাথে যুক্ত করবে।`)) {
+                return;
+            }
+        
+            const dbPath = getDbPath();
+            if (!dbPath || !navigator.onLine) {
+                return showToast('এই কাজটি সম্পন্ন করতে ইন্টারনেট সংযোগ প্রয়োজন।', 'error');
+            }
+        
+            showToast('আইটেম মার্জ করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...', 'warning');
+        
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const allItemIdsToProcess = [baseItemId, ...itemsToMergeIds];
+                    const allItemsData = [];
+                    
+                    for (const id of allItemIdsToProcess) {
+                        const itemRef = dbPath.collection('items').doc(id);
+                        const itemDoc = await transaction.get(itemRef);
+                        if (!itemDoc.exists) throw new Error(`আইটেম খুঁজে পাওয়া যায়নি: ${id}`);
+                        allItemsData.push({ id: itemDoc.id, ...itemDoc.data() });
+                    }
+        
+                    const finalQuantityArray = allItemsData.map(item => {
+                        const keyInput = document.querySelector(`#merge-variant-keys-container input[data-item-id="${item.id}"]`);
+                        if (!keyInput) throw new Error("UI এবং ডেটার মধ্যে অসামঞ্জস্য।");
+                        return {
+                            key: keyInput.value.trim(),
+                            name: item.name,
+                            value: item.quantity
+                        };
+                    });
+        
+                    const baseItemData = allItemsData.find(item => item.id === baseItemId);
+                    const newVariantItemRef = dbPath.collection('items').doc();
+        
+                    transaction.set(newVariantItemRef, {
+                        name: newItemName,
+                        section: baseItemData.section,
+                        unit: baseItemData.unit,
+                        quantity: finalQuantityArray
+                    });
+        
+                    for (const item of allItemsData) {
+                        const ledgerQuery = dbPath.collection('ledger').where('itemId', '==', item.id);
+                        const ledgerSnapshot = await ledgerQuery.get();
+                        
+                        ledgerSnapshot.docs.forEach(doc => {
+                            transaction.update(doc.ref, {
+                                itemId: newVariantItemRef.id,
+                                itemName: newItemName,
+                                originalItemName: item.name
+                            });
+                        });
+        
+                        const itemToDeleteRef = dbPath.collection('items').doc(item.id);
+                        transaction.delete(itemToDeleteRef);
+                    }
+                });
+        
+                showToast('আইটেমগুলো সফলভাবে মার্জ করা হয়েছে।', 'success');
+                closeModal('itemMergeModal');
+        
+            } catch (error) {
+                console.error("Item merge failed:", error);
+                showToast(error.message || 'আইটেম মার্জ করতে সমস্যা হয়েছে।', 'error');
+            }
+        }
+
+        function openItemSplitModal() {
+            const variantSelect = $('#variant-item-select');
+            const previewContainer = document.getElementById('split-preview-container');
+            const previewList = document.getElementById('split-preview-list');
+        
+            variantSelect.empty().off();
+            previewContainer.style.display = 'none';
+            previewList.innerHTML = '';
+        
+            const variantItems = allItems
+                .filter(item => Array.isArray(item.quantity))
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(item => ({
+                    id: item.id,
+                    text: `${item.name} (${toBengaliNumber(item.quantity.length)} টি ভ্যারিয়েন্ট)`
+                }));
+        
+            variantSelect.select2({
+                data: variantItems,
+                placeholder: '-- বিভক্ত করার জন্য আইটেম বাছাই করুন --',
+                dropdownParent: $('#itemSplitModal')
+            });
+        
+            variantSelect.on('change', function() {
+                const selectedItemId = $(this).val();
+                if (!selectedItemId) {
+                    previewContainer.style.display = 'none';
+                    return;
+                }
+        
+                const item = allItems.find(i => i.id === selectedItemId);
+                if (item && Array.isArray(item.quantity)) {
+                    previewList.innerHTML = '';
+                    item.quantity.forEach(variant => {
+                        const li = document.createElement('li');
+                        li.style.padding = '8px 12px';
+                        li.style.borderBottom = '1px solid #eee';
+                        li.innerHTML = `<strong>${variant.name || variant.key}</strong> (স্টক: ${toBengaliNumber(variant.value)} ${item.unit || 'পিস'})`;
+                        previewList.appendChild(li);
+                    });
+                    previewContainer.style.display = 'block';
+                }
+            });
+        
+            openModal('itemSplitModal');
+        }
+        
+        async function executeItemSplit() {
+            const selectedItemId = $('#variant-item-select').val();
+            if (!selectedItemId) {
+                return showToast('অনুগ্রহ করে একটি ভ্যারিয়েন্ট আইটেম বাছাই করুন।', 'error');
+            }
+        
+            const itemToSplit = allItems.find(i => i.id === selectedItemId);
+            if (!itemToSplit || !Array.isArray(itemToSplit.quantity)) {
+                return showToast('বাছাই করা আইটেমটি একটি ভ্যারিয়েন্ট আইটেম নয়।', 'error');
+            }
+        
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            if (!confirm(`আপনি কি নিশ্চিত যে '${itemToSplit.name}' আইটেমটিকে ${toBengaliNumber(itemToSplit.quantity.length)}টি সাধারণ আইটেমে বিভক্ত করতে চান? এই কাজটি মূল আইটেমটি মুছে ফেলবে এবং এর সকল লেজার রেকর্ড নতুন আইটেমগুলোর মধ্যে ভাগ করে দেবে।`)) {
+                return;
+            }
+        
+            const dbPath = getDbPath();
+            if (!dbPath || !navigator.onLine) {
+                return showToast('এই কাজটি সম্পন্ন করতে ইন্টারনেট সংযোগ প্রয়োজন।', 'error');
+            }
+        
+            showToast('আইটেম বিভক্ত করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...', 'warning');
+        
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const newItemsMap = new Map();
+        
+                    for (const variant of itemToSplit.quantity) {
+                        const newItemRef = dbPath.collection('items').doc();
+                        const newItemName = variant.name || `${itemToSplit.name} (${variant.key})`;
+                        const newItemQuantity = variant.value || 0;
+        
+                        transaction.set(newItemRef, {
+                            name: newItemName,
+                            section: itemToSplit.section,
+                            unit: itemToSplit.unit,
+                            quantity: newItemQuantity
+                        });
+                        
+                        newItemsMap.set(variant.key, {
+                            id: newItemRef.id,
+                            name: newItemName
+                        });
+                    }
+        
+                    const oldLedgerQuery = dbPath.collection('ledger').where('itemId', '==', itemToSplit.id);
+                    const oldLedgerSnapshot = await oldLedgerQuery.get();
+        
+                    for (const doc of oldLedgerSnapshot.docs) {
+                        const entry = doc.data();
+                        let distributed = false;
+        
+                        if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
+                            for (const variantKey in entry.details) {
+                                if (newItemsMap.has(variantKey)) {
+                                    const newItemInfo = newItemsMap.get(variantKey);
+                                    const newLedgerRef = dbPath.collection('ledger').doc();
+                                    
+                                    transaction.set(newLedgerRef, {
+                                        ...entry,
+                                        itemId: newItemInfo.id,
+                                        itemName: newItemInfo.name,
+                                        change: entry.change > 0 ? entry.details[variantKey] : -entry.details[variantKey],
+                                        details: null,
+                                        originalItemName: itemToSplit.name 
+                                    });
+                                    distributed = true;
+                                }
+                            }
+                        }
+        
+                        if (!distributed) {
+                            const firstVariantKey = itemToSplit.quantity[0].key;
+                            const firstNewItemInfo = newItemsMap.get(firstVariantKey);
+                            if (firstNewItemInfo) {
+                                transaction.update(doc.ref, {
+                                    itemId: firstNewItemInfo.id,
+                                    itemName: firstNewItemInfo.name,
+                                    originalItemName: entry.itemName
+                                });
+                            }
+                        } else {
+                            transaction.delete(doc.ref);
+                        }
+                    }
+        
+                    const itemToDeleteRef = dbPath.collection('items').doc(itemToSplit.id);
+                    transaction.delete(itemToDeleteRef);
+                });
+        
+                showToast(`'${itemToSplit.name}' আইটেমটিকে সফলভাবে বিভক্ত করা হয়েছে এবং লেজার সংরক্ষণ করা হয়েছে।`, 'success');
+                closeModal('itemSplitModal');
+        
+            } catch (error) {
+                console.error("Item split failed:", error);
+                showToast(error.message || 'আইটেম বিভক্ত করতে সমস্যা হয়েছে।', 'error');
+            }
+        }
 
         // --- Page Navigation ---
         function showPage(pageId) {
@@ -3064,6 +3684,334 @@
                 }, 100);
             }
         }
+        function openVariantStockEditor(item) {
+            const modal = document.getElementById('variantStockEditorModal');
+            const title = document.getElementById('variant-editor-title');
+            const body = document.getElementById('variant-editor-body');
+            const saveBtn = document.getElementById('save-variant-stock-btn');
+        
+            title.textContent = `'${item.name}' - স্টক ও ইউনিট আপডেট`;
+        
+            let bodyHTML = `
+                <div class="form-group" style="padding: 10px; box-shadow: none; background: #e9ecef;">
+                    <label for="variant-editor-unit" style="font-weight: 600;">আইটেমের ইউনিট</label>
+                    <input type="text" id="variant-editor-unit" value="${item.unit || 'পিস'}" style="font-size: 14px;">
+                </div>
+                <div id="variant-rows-container" class="form-group" style="padding:0; box-shadow:none;"></div>
+            `;
+            body.innerHTML = bodyHTML;
+        
+            const variantRowsContainer = document.getElementById('variant-rows-container');
+            
+            const renderRow = (variant) => {
+                const row = document.createElement('div');
+                row.className = 'variant-editor-row';
+                row.style.display = 'grid';
+                row.style.gridTemplateColumns = '3fr 2fr 1fr auto';
+                row.style.alignItems = 'center';
+                row.style.gap = '8px';
+                row.style.marginBottom = '8px';
+                
+                const variantName = variant.name || variant.key || '';
+                const variantKey = variant.key || '';
+                const variantValue = variant.value || 0;
+        
+                row.innerHTML = `
+                    <input type="text" class="variant-editor-name" value="${variantName}" placeholder="পূর্ণ নাম">
+                    <input type="text" class="variant-editor-key" value="${variantKey}" placeholder="Key">
+                    <input type="number" class="variant-editor-value" value="${variantValue}" step="any" style="text-align: center; padding: 8px 4px;">
+                    <button class="delete-btn" onclick="this.parentElement.remove()" style="font-size: 16px; color: var(--danger-color); padding: 0 4px;">🗑️</button>
+                `;
+                variantRowsContainer.appendChild(row);
+            };
+        
+            const quantitySource = Array.isArray(item.quantity) ? item.quantity : [];
+            quantitySource.forEach(renderRow);
+        
+            saveBtn.onclick = async () => {
+                const pinVerified = await requestPinAndExecute();
+                if (!pinVerified) return;
+        
+                const newUnit = document.getElementById('variant-editor-unit').value.trim() || 'পিস';
+                const newQuantityArray = [];
+                const changes = {};
+                let error = false;
+        
+                const originalTotal = quantitySource.reduce((sum, v) => sum + (v.value || 0), 0);
+                const variantRows = body.querySelectorAll('.variant-editor-row');
+        
+                variantRows.forEach(row => {
+                    const nameInput = row.querySelector('.variant-editor-name');
+                    const keyInput = row.querySelector('.variant-editor-key');
+                    const valueInput = row.querySelector('.variant-editor-value');
+                    
+                    const fullName = nameInput.value.trim();
+                    const key = keyInput.value.trim();
+                    const value = parseFloat(valueInput.value) || 0;
+        
+                    if (!fullName || !key) {
+                        showToast('ভ্যারিয়েন্টের পূর্ণ নাম এবং সংক্ষিপ্ত নাম (Key) উভয়ই দিতে হবে।', 'error');
+                        error = true;
+                        return;
+                    }
+                    
+                    newQuantityArray.push({ key: key, name: fullName, value: value });
+                });
+        
+                if (error) return;
+        
+                const newTotal = newQuantityArray.reduce((sum, v) => sum + v.value, 0);
+                const totalChange = newTotal - originalTotal;
+                const unitChanged = newUnit !== (item.unit || 'পিস');
+        
+                if (totalChange === 0 && !unitChanged && JSON.stringify(newQuantityArray) === JSON.stringify(quantitySource)) {
+                    showToast('কোনো পরিবর্তন করা হয়নি।', 'warning');
+                    closeModal('variantStockEditorModal');
+                    return;
+                }
+        
+                const dbPath = getDbPath();
+                if (!dbPath) return showToast('লগইন করা নেই।', 'error');
+        
+                const batch = db.batch();
+                const itemRef = dbPath.collection('items').doc(item.id);
+                batch.update(itemRef, { quantity: newQuantityArray, unit: newUnit });
+        
+                if (totalChange !== 0) {
+                    newQuantityArray.forEach(newVar => {
+                        const oldVar = quantitySource.find(v => v.key === newVar.key);
+                        const diff = newVar.value - (oldVar ? (oldVar.value || 0) : 0);
+                        if (diff !== 0) {
+                            changes[newVar.key] = diff;
+                        }
+                    });
+                    
+                    const ledgerRef = dbPath.collection('ledger').doc();
+                    batch.set(ledgerRef, {
+                        itemId: item.id,
+                        itemName: item.name,
+                        change: totalChange,
+                        person: 'সংশোধন',
+                        date: new Date().toISOString(),
+                        details: changes
+                    });
+                }
+        
+                batch.commit()
+                    .then(() => {
+                        showToast('আইটেম সফলভাবে আপডেট করা হয়েছে।');
+                        closeModal('variantStockEditorModal');
+                    })
+                    .catch((err) => {
+                        console.error("Item update failed:", err);
+                        showToast('আইটেম আপডেট করতে সমস্যা হয়েছে।', 'error');
+                    });
+            };
+            
+            openModal('variantStockEditorModal');
+        }
+        
+        function addVariantToEditor() {
+            const container = document.getElementById('variant-rows-container');
+            if (!container) return;
+        
+            const row = document.createElement('div');
+            row.className = 'variant-editor-row';
+            row.style.display = 'grid';
+            row.style.gridTemplateColumns = '3fr 2fr 1fr auto';
+            row.style.alignItems = 'center';
+            row.style.gap = '8px';
+            row.style.marginBottom = '8px';
+            
+            row.innerHTML = `
+                <input type="text" class="variant-editor-name" placeholder="পূর্ণ নাম">
+                <input type="text" class="variant-editor-key" placeholder="Key">
+                <input type="number" class="variant-editor-value" value="0" step="any" style="text-align: center; padding: 8px 4px;">
+                <button class="delete-btn" onclick="this.parentElement.remove()" style="font-size: 16px; color: var(--danger-color); padding: 0 4px;">🗑️</button>
+            `;
+            
+            container.appendChild(row);
+            row.querySelector('.variant-editor-name').focus();
+        }
+
+        function updateUrgentClearButtonVisibility() {
+            const hasUrgent = ledger.some(entry => entry.isUrgent === true);
+            const urgentBar = document.getElementById('urgent-clear-bar');
+            if (urgentBar) {
+                urgentBar.style.display = hasUrgent ? 'block' : 'none';
+                if (hasUrgent) {
+                    const urgentBtn = document.getElementById('open-urgent-clear-modal-btn');
+                    urgentBtn.onclick = openUrgentClearModal;
+                }
+            }
+        }
+        
+        function openUrgentClearModal() {
+            const container = document.getElementById('urgent-items-container');
+            const urgentEntries = ledger.filter(entry => entry.isUrgent === true);
+        
+            if (urgentEntries.length === 0) {
+                showToast('কোনো অমীমাংসিত জরুরী লেনদেন নেই।', 'warning');
+                return;
+            }
+        
+            const groupedByPersonAndDate = urgentEntries.reduce((acc, entry) => {
+                const date = new Date(entry.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long' });
+                const key = `${entry.person} (${date})`;
+                if (!acc[key]) {
+                    acc[key] = [];
+                }
+                acc[key].push(entry);
+                return acc;
+            }, {});
+        
+            let html = '';
+            for (const groupKey in groupedByPersonAndDate) {
+                html += `<div class="urgent-group">`;
+                html += `<div class="urgent-group-header">${groupKey}</div>`;
+                groupedByPersonAndDate[groupKey].forEach(entry => {
+                    const item = allItems.find(i => i.id === entry.itemId);
+                    const unit = item ? item.unit : 'পিস';
+        
+                    let detailsText = '';
+                    if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
+                        const detailsParts = Object.entries(entry.details)
+                            .map(([key, value]) => `${key}: ${toBengaliNumber(value)}`)
+                            .join(', ');
+                        detailsText = ` <strong style="color: #0056b3; font-size: 11px;">(${detailsParts})</strong>`;
+                    }
+        
+                    html += `
+                        <div class="urgent-item-row">
+                            <input type="checkbox" class="urgent-clear-checkbox" data-ledger-id="${entry.id}">
+                            <div class="urgent-item-details">
+                                <strong>${entry.itemName}</strong> - ${toBengaliNumber(Math.abs(entry.change))} ${unit}${detailsText}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+            container.innerHTML = html;
+            
+            document.getElementById('uc-requisition-id').value = '';
+            document.getElementById('uc-req-id-status').textContent = '';
+            document.getElementById('uc-requisition-id').classList.remove('valid', 'invalid');
+        
+            document.getElementById('clear-selected-urgent-btn').onclick = processUrgentClear;
+        
+            openModal('urgentClearModal');
+        }
+
+        let ucReqCheckDebounceTimer;
+        function checkUrgentRequisitionId() {
+            const reqInput = document.getElementById('uc-requisition-id');
+            const statusDiv = document.getElementById('uc-req-id-status');
+            const reqValue = reqInput.value.trim();
+        
+            reqInput.classList.remove('valid', 'invalid');
+            statusDiv.textContent = '';
+        
+            if (!reqValue) return;
+        
+            clearTimeout(ucReqCheckDebounceTimer);
+            ucReqCheckDebounceTimer = setTimeout(async () => {
+                const requisitionIdAsNumber = parseInt(reqValue, 10);
+                if (isNaN(requisitionIdAsNumber)) {
+                    statusDiv.textContent = 'অনুগ্রহ করে সঠিক সংখ্যা দিন।';
+                    statusDiv.style.color = 'var(--danger-color)';
+                    reqInput.classList.add('invalid');
+                    return;
+                }
+        
+                statusDiv.textContent = 'চেক করা হচ্ছে...';
+                statusDiv.style.color = '#6c757d';
+        
+                try {
+                    const dbPath = getDbPath();
+                    if (!dbPath) throw new Error("লগইন করা নেই।");
+        
+                    const localMatch = ledger.some(entry => entry.requisitionId === requisitionIdAsNumber);
+                    if (localMatch) {
+                        statusDiv.textContent = 'এই নম্বরটি ইতোমধ্যে ব্যবহৃত হয়েছে।';
+                        statusDiv.style.color = 'var(--danger-color)';
+                        reqInput.classList.add('invalid');
+                        return;
+                    }
+        
+                    if (navigator.onLine) {
+                        const ledgerQuery = await dbPath.collection('ledger').where('requisitionId', '==', requisitionIdAsNumber).limit(1).get();
+                        if (!ledgerQuery.empty) {
+                            statusDiv.textContent = 'এই নম্বরটি ইতোমধ্যে ব্যবহৃত হয়েছে।';
+                            statusDiv.style.color = 'var(--danger-color)';
+                            reqInput.classList.add('invalid');
+                        } else {
+                            statusDiv.textContent = 'নম্বরটি উপলব্ধ আছে।';
+                            statusDiv.style.color = 'var(--success-color)';
+                            reqInput.classList.add('valid');
+                        }
+                    } else {
+                        statusDiv.textContent = 'নম্বরটি উপলব্ধ (অফলাইন)।';
+                        statusDiv.style.color = 'var(--success-color)';
+                        reqInput.classList.add('valid');
+                    }
+                } catch (error) {
+                    statusDiv.textContent = 'চেক করতে সমস্যা হয়েছে।';
+                    statusDiv.style.color = 'var(--danger-color)';
+                }
+            }, 500);
+        }
+        
+        async function processUrgentClear() {
+            const selectedCheckboxes = document.querySelectorAll('.urgent-clear-checkbox:checked');
+            const requisitionIdValue = document.getElementById('uc-requisition-id').value.trim();
+        
+            if (selectedCheckboxes.length === 0) {
+                return showToast('অনুগ্রহ করে অন্তত একটি আইটেম সিলেক্ট করুন।', 'error');
+            }
+            if (!requisitionIdValue) {
+                return showToast('অনুগ্রহ করে রিকুইজিশন নম্বর দিন।', 'error');
+            }
+        
+            const requisitionId = parseInt(requisitionIdValue, 10);
+            if (isNaN(requisitionId)) {
+                return showToast('রিকুইজিশন নম্বরটি একটি সঠিক সংখ্যা হতে হবে।', 'error');
+            }
+        
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            const dbPath = getDbPath();
+            if (!dbPath || !navigator.onLine) {
+                return showToast('এই কাজটি সম্পন্ন করতে ইন্টারনেট সংযোগ প্রয়োজন।', 'error');
+            }
+        
+            try {
+                const ledgerQuery = await dbPath.collection('ledger').where('requisitionId', '==', requisitionId).limit(1).get();
+                if (!ledgerQuery.empty) {
+                    return showToast(`রিকুইজিশন নম্বর '${requisitionIdValue}' ইতোমধ্যে ব্যবহার করা হয়েছে।`, 'error');
+                }
+        
+                const batch = db.batch();
+                const ledgerIdsToUpdate = Array.from(selectedCheckboxes).map(cb => cb.dataset.ledgerId);
+        
+                ledgerIdsToUpdate.forEach(id => {
+                    const ledgerRef = dbPath.collection('ledger').doc(id);
+                    batch.update(ledgerRef, {
+                        isUrgent: false,
+                        requisitionId: requisitionId
+                    });
+                });
+        
+                await batch.commit();
+                showToast(`${toBengaliNumber(ledgerIdsToUpdate.length)}টি লেনদেন সফলভাবে ক্লিয়ার করা হয়েছে।`);
+                closeModal('urgentClearModal');
+        
+            } catch (error) {
+                console.error("Urgent clear failed:", error);
+                showToast('লেনদেন ক্লিয়ার করতে সমস্যা হয়েছে।', 'error');
+            }
+        }
 
         function createSectionCard(section, items) {
             const card = document.createElement('div');
@@ -3080,33 +4028,65 @@
                 const unit = item.unit || 'পিস';
                 const lowerItemName = item.name.toLowerCase();
                 let levels = null;
-        
+            
                 const customRule = stockLevelRules.find(rule => lowerItemName.includes(rule.keyword));
-        
+            
                 if (customRule) {
                     levels = customRule.levels;
                 } else {
                     levels = stockLevels[unit] || stockLevels['default'];
                 }
-        
-                if (item.quantity <= levels.critical) {
+            
+                const isVariant = Array.isArray(item.quantity);
+            
+                const totalQuantity = isVariant
+                    ? item.quantity.reduce((sum, v) => sum + (v.value || 0), 0)
+                    : item.quantity;
+            
+                if (totalQuantity <= levels.critical) {
                     stockClass = 'level-critical'; stockIcon = '🚨';
-                } else if (item.quantity <= levels.veryLow) {
+                } else if (totalQuantity <= levels.veryLow) {
                     stockClass = 'level-very-low'; stockIcon = '🔥';
-                } else if (item.quantity <= levels.low) {
+                } else if (totalQuantity <= levels.low) {
                     stockClass = 'level-low'; stockIcon = '⚠️';
                 }
                 
                 const highlightClass = (searchTerm && lowerItemName.includes(searchTerm)) ? 'search-highlight' : '';
                 
-                // --- নতুন: জরুরী লেনদেন আছে কিনা তা পরীক্ষা করা ---
                 const hasUnclearedUrgent = ledger.some(entry => 
                     entry.itemId === item.id && entry.isUrgent === true
                 );
                 const urgentIndicatorHTML = hasUnclearedUrgent 
                     ? '<span class="urgent-dot" title="এই আইটেমের একটি অমীমাংসিত জরুরী লেনদেন আছে।">🔴</span>' 
                     : '';
-                // --- লজিক শেষ ---
+            
+                const createVariantBadges = (quantityArray, itemUnit) => {
+                    if (!Array.isArray(quantityArray)) return '';
+                
+                    const colorMapping = {
+                        'R': { bg: '#e4000f', text: 'white' }, 'RED': { bg: '#e4000f', text: 'white' }, 'লাল': { bg: '#e4000f', text: 'white' },
+                        'Y': { bg: '#ffc107', text: 'black' }, 'YELLOW': { bg: '#ffc107', text: 'black' }, 'হলুদ': { bg: '#ffc107', text: 'black' },
+                        'B': { bg: '#007bff', text: 'white' }, 'BLUE': { bg: '#007bff', text: 'white' }, 'নীল': { bg: '#007bff', text: 'white' },
+                        'BK': { bg: '#343a40', text: 'white' }, 'BLACK': { bg: '#343a40', text: 'white' }, 'কালো': { bg: '#343a40', text: 'white' },
+                        'G': { bg: '#28a745', text: 'white' }, 'GREEN': { bg: '#28a745', text: 'white' }, 'সবুজ': { bg: '#28a745', text: 'white' }
+                    };
+                
+                    const badgesHTML = quantityArray.map(variant => {
+                        const variantKeyUpper = (variant.key || '').toUpperCase();
+                        const colors = colorMapping[variantKeyUpper] || { bg: '#6c757d', text: 'white' };
+                        
+                        return `<span style="background-color: ${colors.bg}; color: ${colors.text}; padding: 1px 5px; border-radius: 3px; font-size: 10px; margin: 1px; display: inline-block; font-weight: 500;">${variant.key}: ${toBengaliNumber(variant.value)}</span>`;
+                    }).join('');
+                
+                    return `<div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.4;">
+                                <div>${badgesHTML}</div>
+                                <strong style="font-size: 10px; color: var(--dark-text); margin-top: 2px;">${itemUnit}</strong>
+                            </div>`;
+                };
+
+                const stockDisplayHTML = isVariant
+                    ? createVariantBadges(item.quantity, unit)
+                    : `<strong>${toBengaliNumber(item.quantity)} ${unit}</strong>`;
                     
                 return `<tr class="${stockClass} ${highlightClass}" data-highlight-id="${item.id}">
                             <td data-label="আইটেমের নাম" class="item-name-cell" data-item-id="${item.id}">
@@ -3115,12 +4095,12 @@
                             <td data-label="বর্তমান স্টক" class="stock-cell" 
                                 data-item-id="${item.id}" 
                                 data-item-name="${item.name.replace(/"/g, '&quot;')}" 
-                                data-item-quantity="${item.quantity}">
-                                <strong>${toBengaliNumber(item.quantity)} ${unit}</strong>
+                                data-item-quantity='${JSON.stringify(item.quantity)}'>
+                                ${stockDisplayHTML}
                             </td>
                         </tr>`;
             }).join('');
-            
+
             let expandButtonHTML = '';
             if (items.length > ITEMS_PER_PAGE) {
                 const buttonText = isExpanded ? 'Less' : 'More';
@@ -3167,22 +4147,27 @@
                 });
             });
         
-            card.querySelectorAll('.stock-cell strong').forEach(strongTag => {
-                const cell = strongTag.parentElement;
-                strongTag.style.cursor = 'pointer'; 
+            card.querySelectorAll('.stock-cell').forEach(cell => {
+                cell.style.cursor = 'pointer';
             
-                strongTag.addEventListener('click', (e) => {
+                const handleStockClick = (e) => {
                     e.stopPropagation();
-                    editStock(cell.dataset.itemId, cell.dataset.itemName, parseFloat(cell.dataset.itemQuantity));
-                });
+                    const quantityData = JSON.parse(cell.dataset.itemQuantity);
+                    editStock(cell.dataset.itemId, cell.dataset.itemName, quantityData);
+                };
             
-                strongTag.addEventListener('touchstart', (e) => handlePress(e, cell.dataset.itemId, 'unit'));
-                strongTag.addEventListener('touchend', handleRelease);
-                strongTag.addEventListener('mousedown', (e) => handlePress(e, cell.dataset.itemId, 'unit'));
-                strongTag.addEventListener('mouseup', handleRelease);
-                strongTag.addEventListener('mouseleave', handleRelease);
+                cell.addEventListener('click', handleStockClick);
+            
+                const quantityDataForLongPress = JSON.parse(cell.dataset.itemQuantity);
+                if (typeof quantityDataForLongPress === 'number') {
+                    cell.addEventListener('touchstart', (e) => handlePress(e, cell.dataset.itemId, 'unit'));
+                    cell.addEventListener('touchend', handleRelease);
+                    cell.addEventListener('mousedown', (e) => handlePress(e, cell.dataset.itemId, 'unit'));
+                    cell.addEventListener('mouseup', handleRelease);
+                    cell.addEventListener('mouseleave', handleRelease);
+                }
             });
-            
+
             return card;
         }
 
@@ -3395,13 +4380,6 @@
                 const changeClass = entry.change > 0 ? 'ledger-in' : 'ledger-out';
                 
                 let urgentIndicator = '';
-                if (entry.isUrgent && type === 'out') {
-                    urgentIndicator = `
-                        <button onclick="clearUrgentFlag('${entry.id}')" 
-                                style="background: var(--warning-color); color: var(--dark-text); border: none; border-radius: 5px; padding: 3px 8px; font-size: 10px; cursor: pointer; font-weight: bold; margin-left: 8px;">
-                            ক্লিয়ার
-                        </button>`;
-                }
         
                 const entryDiv = document.createElement('div');
                 entryDiv.className = 'ledger-entry';
@@ -3529,25 +4507,34 @@
             }
         }
 
-        function clearUrgentFlag(ledgerId) {
-            if (!confirm("আপনি কি নিশ্চিত যে এই লেনদেনের রিকুইজিশন জমা হয়েছে?")) return;
+        async function clearUrgentFlag(ledgerId) {
+            const specialPinVerified = await requestSpecialClearancePin();
+            if (!specialPinVerified) {
+                showToast('বাতিল করা হয়েছে বা পিন সঠিক নয়।', 'warning');
+                return;
+            }
         
             const dbPath = getDbPath();
             if (!dbPath) return showToast('লগইন করা নেই।', 'error');
         
             const ledgerRef = dbPath.collection('ledger').doc(ledgerId);
+            const specialRequisitionId = parseInt(SPECIAL_CLEAR_PIN);
         
-            ledgerRef.update({ isUrgent: false })
-                .then(() => {
-                    showToast('লেনদেনটি সফলভাবে ক্লিয়ার করা হয়েছে।');
-                    const currentTab = document.querySelector('.ledger-tab.active').id.includes('in') ? 'in' : 'out';
-                    renderLedger(currentTab);
-                })
-                .catch(error => {
-                    showToast('লেনদেনটি ক্লিয়ার করতে সমস্যা হয়েছে।', 'error');
-                });
+            closeModal('userReportModal');
+        
+            ledgerRef.update({
+                isUrgent: false,
+                requisitionId: specialRequisitionId
+            })
+            .then(() => {
+                showToast('লেনদেনটি বিশেষ বিবেচনায় সফলভাবে ক্লিয়ার করা হয়েছে।');
+            })
+            .catch(error => {
+                console.error("Special urgent flag clear failed:", error);
+                showToast('লেনদেনটি ক্লিয়ার করতে সমস্যা হয়েছে।', 'error');
+            });
         }
-        
+
         function showLedgerTab(type) {
             // ট্যাব বাটনগুলোর স্টাইল আপডেট
             document.getElementById('ledger-in-tab').classList.toggle('active', type === 'in');
@@ -3768,32 +4755,28 @@
         }
 
         async function editStock(itemId, itemName, currentStock) {
+            const item = allItems.find(i => i.id === itemId);
+            if (!item) return;
+        
+            if (Array.isArray(item.quantity) || (typeof item.quantity === 'object' && item.quantity !== null)) {
+                openVariantStockEditor(item);
+                return;
+            }
+        
             const dbPath = getDbPath();
             if (!dbPath) return showToast('লগইন করা নেই।', 'error');
         
             const pinVerified = await requestPinAndExecute();
             if (!pinVerified) return;
         
-            const item = allItems.find(i => i.id === itemId);
             let inputStep = 'any';
             let requiresInteger = false;
         
-            if (item) {
-                const unitValue = item.unit.toLowerCase().trim();
-                const integerUnits = [
-                    'pcs', 'pc', 'pice', 'pce', 'পিস', 'টি', 
-                    'set', 'সেট', 
-                    'box', 'বক্স', 
-                    'packet', 'প্যাকেট', 
-                    'dozen', 'dzn', 'ডজন', 
-                    'pair', 'জোড়া',
-                    'roll', 'রোল',
-                    'عدد'
-                ];
-                if (integerUnits.includes(unitValue)) {
-                    inputStep = '1';
-                    requiresInteger = true;
-                }
+            const unitValue = item.unit.toLowerCase().trim();
+            const integerUnits = [ 'pcs', 'pc', 'pice', 'pce', 'পিস', 'টি', 'set', 'সেট', 'box', 'বক্স', 'packet', 'প্যাকেট', 'dozen', 'dzn', 'ডজন', 'pair', 'জোড়া', 'roll', 'রোল', 'عدد' ];
+            if (integerUnits.includes(unitValue)) {
+                inputStep = '1';
+                requiresInteger = true;
             }
         
             const newStockStr = await showCustomPrompt({
@@ -3812,14 +4795,18 @@
             }
         
             if (requiresInteger && newStock % 1 !== 0) {
-                return showToast(`'${item.unit}' ইউনিটের জন্য শুধুমাত্র পূর্ণ সংখ্যা (যেমন: ১, ২, ৩) ব্যবহার করা যাবে।`, 'error');
+                return showToast(`'${item.unit}' ইউনিটের জন্য শুধুমাত্র পূর্ণ সংখ্যা ব্যবহার করা যাবে।`, 'error');
             }
         
             const finalStock = requiresInteger ? Math.round(newStock) : newStock;
-        
-            const itemRef = dbPath.collection('items').doc(itemId);
             const change = finalStock - currentStock;
         
+            if (change === 0) {
+                showToast('স্টকের কোনো পরিবর্তন হয়নি।', 'warning');
+                return;
+            }
+        
+            const itemRef = dbPath.collection('items').doc(itemId);
             const batch = db.batch();
             batch.update(itemRef, { quantity: finalStock });
             const ledgerRef = dbPath.collection('ledger').doc();
@@ -3894,7 +4881,7 @@
             const localUsers = JSON.parse(localStorage.getItem('app_users') || '[]');
         
             if (localUsers.some(u => u.name.toLowerCase() === name.toLowerCase())) {
-                showToast('এই নামে ব্যবহারকারী রয়েছে।', 'error');
+                showToast('এই নামে কর্মচারী রয়েছে।', 'error');
                 return;
             }
         
@@ -3908,7 +4895,7 @@
             users = localUsers;
         
             nameInput.value = '';
-            showToast('ব্যবহারকারী যোগ করা হয়েছে।');
+            showToast('নতুন কর্মচারী যোগ করা হয়েছে।');
             renderUsersPage();
             nameInput.focus();
         
@@ -4024,15 +5011,31 @@
                     return `<option value="${s.name}" ${isSelected ? 'selected' : ''}>${s.name}</option>`;
                 }).join('');
         
-            formCard.innerHTML = `
-                <button class="remove-form-btn" onclick="this.parentElement.remove(); updateSaveButtonState();">×</button>
-                <input type="text" class="item-name" autocomplete="off" placeholder="আইটেমের নাম" required>
-                <select class="item-section">${sectionOptions}</select>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <input type="number" class="item-quantity" autocomplete="off" placeholder="পরিমাণ" min="0" step="any">
-                    <input type="text" class="item-unit" autocomplete="off" placeholder="একক (যেমন: কেজি, পিস)" value="পিস" oninput="updateQuantityStep(this)" required>
-                </div>
-            `;
+                formCard.innerHTML = `
+                    <button class="remove-form-btn" onclick="this.parentElement.remove(); updateSaveButtonState();">×</button>
+                    <input type="text" class="item-name" autocomplete="off" placeholder="আইটেমের নাম" required>
+                    <select class="item-section">${sectionOptions}</select>
+                    
+                    <!-- সাধারণ আইটেমের পরিমাণ -->
+                    <div class="quantity-normal-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <input type="number" class="item-quantity" autocomplete="off" placeholder="পরিমাণ" min="0" step="any">
+                        <input type="text" class="item-unit" autocomplete="off" placeholder="একক (যেমন: কেজি, পিস)" value="পিস" oninput="updateQuantityStep(this)" required>
+                    </div>
+                
+                    <!-- ভ্যারিয়েন্ট আইটেমের কন্টেইনার (ডিফল্টভাবে লুকানো) -->
+                    <div class="quantity-variant-section" style="display: none; border: 1px solid #eee; padding: 10px; border-radius: 6px; margin-top: 5px;">
+                        <div class="variant-rows-container">
+                            <!-- ভ্যারিয়েন্ট ইনপুট এখানে যুক্ত হবে -->
+                        </div>
+                        <button type="button" class="action-btn" style="width: 100%; margin-top: 10px; background: #5a6268; font-size: 12px; padding: 8px;" onclick="addVariantRow(this)">আরও ভ্যারিয়েন্ট যোগ করুন +</button>
+                    </div>
+                
+                    <!-- ভ্যারিয়েন্ট টগল চেকবক্স -->
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px;">
+                        <input type="checkbox" class="is-variant-checkbox" onchange="toggleVariantView(this)" style="width: auto;">
+                        <label style="margin: 0; font-weight: 500; cursor: pointer;" onclick="this.previousElementSibling.click()">ভ্যারিয়েন্ট আছে?</label>
+                    </div>
+                `;
             formsContainer.appendChild(formCard);
             updateSaveButtonState();
             formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -4094,6 +5097,40 @@
             });
         }
 
+        function toggleVariantView(checkbox) {
+            const formCard = checkbox.closest('.item-form-card');
+            const normalSection = formCard.querySelector('.quantity-normal-section');
+            const variantSection = formCard.querySelector('.quantity-variant-section');
+            const variantContainer = variantSection.querySelector('.variant-rows-container');
+        
+            if (checkbox.checked) {
+                normalSection.style.display = 'none';
+                variantSection.style.display = 'block';
+                if (variantContainer.children.length === 0) {
+                    addVariantRow(variantSection.querySelector('button'));
+                    addVariantRow(variantSection.querySelector('button'));
+                }
+            } else {
+                normalSection.style.display = 'grid';
+                variantSection.style.display = 'none';
+            }
+        }
+        
+        function addVariantRow(button) {
+            const container = button.previousElementSibling;
+            const variantRow = document.createElement('div');
+            variantRow.style.display = 'grid';
+            variantRow.style.gridTemplateColumns = '1fr 1fr auto';
+            variantRow.style.gap = '8px';
+            variantRow.style.marginBottom = '8px';
+            variantRow.innerHTML = `
+                <input type="text" class="variant-key" placeholder="ভ্যারিয়েন্ট (যেমন: R, Y, 16mm)">
+                <input type="number" class="variant-quantity" placeholder="পরিমাণ" min="0" step="any">
+                <button type="button" style="background:none; border:none; color:red; font-size:20px; cursor:pointer;" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(variantRow);
+        }
+
         function saveAllItems() {
             const formCards = document.querySelectorAll('#multiItemFormsContainer .item-form-card');
             if (formCards.length === 0) {
@@ -4116,45 +5153,73 @@
         
                 const name = card.querySelector('.item-name').value.trim();
                 const section = card.querySelector('.item-section').value;
-                const quantityStr = card.querySelector('.item-quantity').value;
-                const quantity = parseFloat(quantityStr) || 0;
-                const unit = card.querySelector('.item-unit').value.trim() || 'পিস';
+                const unitInput = card.querySelector('.item-unit');
+                const unit = unitInput ? unitInput.value.trim() || 'পিস' : 'পিস';
+                const isVariant = card.querySelector('.is-variant-checkbox').checked;
         
-                if (!name || !section || quantity < 0) {
+                if (!name || !section) {
                     showToast('অনুগ্রহ করে আইটেমের নাম এবং সেকশন সঠিকভাবে দিন।', 'error');
                     errorOccurred = true;
                     return;
                 }
         
-                let existingItem = localData.items.find(i => i.name.toLowerCase() === name.toLowerCase() && i.section === section);
-                let targetItemId;
-                let isNewItem = false;
+                let quantity;
+                let initialChange = 0;
+                let ledgerDetails = null;
         
-                if (existingItem) {
-                    if (existingItem.unit.toLowerCase() !== unit.toLowerCase()) {
-                        showToast(`'${name}' আইটেমটি '${existingItem.unit}' এককে রয়েছে।`, 'error');
+                if (isVariant) {
+                    quantity = [];
+                    ledgerDetails = {};
+                    const variantRows = card.querySelectorAll('.variant-rows-container > div');
+                    if (variantRows.length === 0) {
+                        showToast(`'${name}' এর জন্য অন্তত একটি ভ্যারিয়েন্ট যোগ করুন।`, 'error');
                         errorOccurred = true;
                         return;
                     }
-                    existingItem.quantity += quantity;
-                    targetItemId = existingItem.id;
-                    itemsToSync.push({ item: existingItem, isNew: false });
+                    variantRows.forEach(row => {
+                        const variantName = row.querySelector('.variant-key').value.trim();
+                        const value = parseFloat(row.querySelector('.variant-quantity').value) || 0;
+                        if (variantName) {
+                            const variantKey = normalizeVariantKey(variantName);
+                            const normalized = normalizeVariantKey(variantName); quantity.push({ key: normalized.key, name: normalized.name, value: value });
+                            initialChange += value;
+                            if (value > 0) {
+                                ledgerDetails[normalized.key] = value;
+                            }
+                        }
+                    });
+                    if (quantity.length === 0) {
+                        showToast(`'${name}' এর জন্য ভ্যারিয়েন্টের নাম দিন।`, 'error');
+                        errorOccurred = true;
+                        return;
+                    }
                 } else {
-                    isNewItem = true;
-                    targetItemId = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                    const newItem = { id: targetItemId, name, section, quantity, unit };
-                    localData.items.push(newItem);
-                    itemsToSync.push({ item: newItem, isNew: true });
+                    const quantityStr = card.querySelector('.item-quantity').value;
+                    quantity = parseFloat(quantityStr) || 0;
+                    initialChange = quantity;
                 }
         
-                if (quantity > 0) {
+                let existingItem = localData.items.find(i => i.name.toLowerCase() === name.toLowerCase() && i.section === section);
+                if (existingItem) {
+                    showToast(`'${name}' আইটেমটি এই সেকশনে আগে থেকেই আছে। স্টক আপডেট করুন।`, 'error');
+                    errorOccurred = true;
+                    return;
+                }
+        
+                const targetItemId = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const newItem = { id: targetItemId, name, section, quantity, unit };
+                localData.items.push(newItem);
+                itemsToSync.push({ item: newItem, isNew: true });
+        
+                if (initialChange > 0) {
                     const ledgerEntry = {
                         id: `ledger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                         itemId: targetItemId,
                         itemName: name,
-                        change: quantity,
-                        person: isNewItem ? 'নতুন আইটেম' : 'স্টক ইন',
-                        date: new Date().toISOString()
+                        change: initialChange,
+                        person: 'নতুন আইটেম',
+                        date: new Date().toISOString(),
+                        details: ledgerDetails
                     };
                     localData.ledger.push(ledgerEntry);
                     ledgerToSync.push(ledgerEntry);
@@ -4172,10 +5237,10 @@
         
                 document.getElementById('multiItemFormsContainer').innerHTML = '';
                 closeModal('itemAddModal');
-                showToast(`${toBengaliNumber(itemsAddedCount)}টি আইটেম সফলভাবে সেভ/আপডেট হয়েছে।`);
+                showToast(`${toBengaliNumber(itemsAddedCount)}টি আইটেম সফলভাবে সেভ হয়েছে।`);
                 if (itemsToSync.length === 1) {
                     itemToHighlight = itemsToSync[0].item.id;
-                }                
+                }
                 renderInventoryPage();
                 updateSlidingNotifications();
         
@@ -4184,11 +5249,7 @@
                     const batch = db.batch();
                     itemsToSync.forEach(syncInfo => {
                         const itemRef = dbPath.collection('items').doc(syncInfo.item.id);
-                        if (syncInfo.isNew) {
-                            batch.set(itemRef, syncInfo.item);
-                        } else {
-                            batch.update(itemRef, { quantity: syncInfo.item.quantity });
-                        }
+                        batch.set(itemRef, syncInfo.item);
                     });
                     ledgerToSync.forEach(entry => {
                         const ledgerRef = dbPath.collection('ledger').doc(entry.id);
@@ -4205,7 +5266,7 @@
         
             const userSelect = document.getElementById('pi-user-main');
             const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name));
-            userSelect.innerHTML = `<option value="" disabled selected>-- ব্যবহারকারী --</option>${sortedUsers.map(u => `<option value="${u.name}">${u.name}</option>`).join('')}`;
+            userSelect.innerHTML = `<option value="" disabled selected>-- কর্মচারী বাছাই করুন --</option>${sortedUsers.map(u => `<option value="${u.name}">${u.name}</option>`).join('')}`;
             
             document.getElementById('provide-items-container').innerHTML = '';
             const urgentCheckbox = document.getElementById('pi-is-urgent-main');
@@ -4314,7 +5375,12 @@
                     <div class="custom-search-results"></div>
                 </div>
                 <input type="hidden" class="selected-item-id">
-                <input type="number" class="pi-quantity-dynamic" autocomplete="off" placeholder="পরিমাণ" min="0" step="any" required oninput="validateStockOnInput(this)">
+                
+                <!-- সাধারণ আইটেমের জন্য ইনপুট -->
+                <input type="number" class="pi-quantity-single" style="display: block;" autocomplete="off" placeholder="পরিমাণ" min="0" step="any" required oninput="validateStockOnInput(this)">
+                
+                <!-- ভ্যারিয়েন্ট আইটেমের ইনপুটগুলো এখানে যুক্ত হবে -->
+                <div class="pi-quantity-dynamic" style="display: none;"></div>
             `;
             container.appendChild(formCard);
             updateProvideButtonState();
@@ -4334,23 +5400,84 @@
         function validateStockOnInput(quantityInput) {
             const formCard = quantityInput.closest('.item-form-card');
             const itemId = formCard.querySelector('.selected-item-id').value;
-            const enteredQuantity = parseFloat(quantityInput.value);
+            
+            const isVariantInput = quantityInput.classList.contains('pi-variant-quantity');
+            const feedbackDiv = isVariantInput ? quantityInput.closest('div').nextElementSibling : quantityInput.nextElementSibling;
         
-            if (!itemId || isNaN(enteredQuantity) || enteredQuantity <= 0) {
+            if (!itemId || !feedbackDiv) return;
+        
+            const item = allItems.find(i => i.id === itemId);
+            if (!item) return;
+        
+            const enteredQuantity = parseFloat(quantityInput.value) || 0;
+            
+            let availableStock, unit, levels;
+            const lowerItemName = item.name.toLowerCase();
+            const customRule = stockLevelRules.find(rule => lowerItemName.includes(rule.keyword));
+        
+            if (isVariantInput) {
+                const variantKey = quantityInput.dataset.variantKey;
+                const variant = item.quantity.find(v => v.key === variantKey);
+                if (!variant) return;
+                availableStock = variant.value;
+                unit = item.unit || 'পিস';
+            } else {
+                availableStock = item.quantity;
+                unit = item.unit || 'পিস';
+            }
+        
+            if (customRule) {
+                levels = customRule.levels;
+            } else {
+                levels = stockLevels[unit] || stockLevels['default'];
+            }
+        
+            quantityInput.disabled = false;
+            feedbackDiv.textContent = '';
+            feedbackDiv.style.color = 'var(--dark-text)';
+        
+            if (availableStock === 0) {
+                quantityInput.disabled = true;
+                feedbackDiv.textContent = 'স্টক নেই';
+                feedbackDiv.style.color = 'var(--danger-color)';
                 return;
             }
         
-            const item = allItems.find(i => i.id === itemId);
-        
-            if (item && enteredQuantity > item.quantity) {
-                if (navigator.vibrate) {
-                    navigator.vibrate(100);
-                }
-                
-                showToast(`অপর্যাপ্ত স্টক! সর্বোচ্চ ${toBengaliNumber(item.quantity)} ${item.unit} দেওয়া যাবে।`, 'error');
-                
+            if (enteredQuantity > availableStock) {
+                if (navigator.vibrate) navigator.vibrate(100);
+                showToast(`অপর্যাপ্ত স্টক! সর্বোচ্চ ${toBengaliNumber(availableStock)} ${unit} দেওয়া যাবে।`, 'error');
                 quantityInput.value = '';
+                validateStockOnInput(quantityInput); 
                 quantityInput.focus();
+                return;
+            }
+        
+            const currentEnteredQuantity = parseFloat(quantityInput.value) || 0;
+        
+            if (currentEnteredQuantity > 0) {
+                const remaining = availableStock - currentEnteredQuantity;
+                if (remaining === 0) {
+                    feedbackDiv.textContent = 'স্টক শেষ হয়ে যাবে';
+                    feedbackDiv.style.color = 'var(--warning-color)';
+                } else {
+                    feedbackDiv.textContent = `অবশিষ্ট থাকবে: ${toBengaliNumber(remaining)} ${unit}`;
+                    
+                    if (availableStock <= levels.critical) {
+                        feedbackDiv.style.color = 'var(--danger-color)';
+                    } else if (availableStock <= levels.low) {
+                        feedbackDiv.style.color = 'var(--warning-color)';
+                    } else {
+                        feedbackDiv.style.color = 'var(--success-color)';
+                    }
+                }
+            } else {
+                if (availableStock <= levels.critical) {
+                    feedbackDiv.textContent = `স্টক প্রায় শেষ: মাত্র ${toBengaliNumber(availableStock)} ${unit}`;
+                    feedbackDiv.style.color = 'var(--danger-color)';
+                } else if (availableStock <= levels.low) {
+                    feedbackDiv.textContent = `স্টক কম: মাত্র ${toBengaliNumber(availableStock)} ${unit}`;
+                    feedbackDiv.style.color = 'var(--warning-color)';
+                }
             }
         }
 
@@ -4385,14 +5512,43 @@
             const itemsToProvide = [];
             for (const card of formCards) {
                 const itemId = card.querySelector('.selected-item-id').value;
-                const quantityStr = card.querySelector('.pi-quantity-dynamic').value;
-                const quantity = parseFloat(quantityStr);
                 const itemName = card.querySelector('.custom-search-input').value;
-        
-                if (!itemId || isNaN(quantity) || quantity <= 0) {
-                    return showToast('অনুগ্রহ করে সব আইটেমের তথ্য সঠিকভাবে পূরণ করুন।', 'error');
+                const item = allItems.find(i => i.id === itemId);
+            
+                if (!item) {
+                    return showToast(`'${itemName}' আইটেমটি পাওয়া যায়নি।`, 'error');
                 }
-                itemsToProvide.push({ itemId, quantity, itemName });
+            
+                const isVariant = typeof item.quantity === 'object' && item.quantity !== null;
+            
+                if (isVariant) {
+                    const variantInputs = card.querySelectorAll('.pi-variant-quantity');
+                    let totalVariantQty = 0;
+                    let providedVariants = {};
+            
+                    variantInputs.forEach(input => {
+                        const quantity = parseFloat(input.value);
+                        if (quantity > 0) {
+                            const variant = input.dataset.variant;
+                            providedVariants[variant] = quantity;
+                            totalVariantQty += quantity;
+                        }
+                    });
+            
+                    if (totalVariantQty > 0) {
+                        itemsToProvide.push({ itemId, quantity: totalVariantQty, itemName, isVariant: true, providedVariants });
+                    }
+                } else {
+                    const quantityStr = card.querySelector('.pi-quantity-single').value;
+                    const quantity = parseFloat(quantityStr);
+                    if (quantity > 0) {
+                        itemsToProvide.push({ itemId, quantity, itemName, isVariant: false });
+                    }
+                }
+            }
+            
+            if (itemsToProvide.length === 0) {
+                return showToast('প্রদানের জন্য কোনো আইটেমের পরিমাণ উল্লেখ করা হয়নি।', 'error');
             }
         
             if (!navigator.onLine) {
@@ -4436,18 +5592,39 @@
                 });
         
                 for (const item of itemsWithStock) {
-                    if (item.currentStock < item.quantity) {
-                        throw new Error(`'${item.itemName}' আইটেমের অপর্যাপ্ত স্টক! (বর্তমান: ${item.currentStock})`);
+                    if (item.isVariant) {
+                        // ভ্যারিয়েন্ট আইটেমের প্রতিটি ভ্যারিয়েন্টের জন্য স্টক চেক
+                        for (const variantKey in item.providedVariants) {
+                            const variantInStock = item.currentStock.find(v => v.key === variantKey);
+                            if (!variantInStock || variantInStock.value < item.providedVariants[variantKey]) {
+                                throw new Error(`'${item.itemName}' (${variantKey}) আইটেমের অপর্যাপ্ত স্টক!`);
+                            }
+                        }
+                    } else {
+                        // সাধারণ আইটেমের জন্য স্টক চেক
+                        if (item.currentStock < item.quantity) {
+                            throw new Error(`'${item.itemName}' আইটেমের অপর্যাপ্ত স্টক! (বর্তমান: ${item.currentStock})`);
+                        }
                     }
                 }
         
                 await db.runTransaction(async (transaction) => {
                     for (const itemData of itemsWithStock) {
                         const itemRef = mainDocRef.collection('items').doc(itemData.itemId);
-                        const newStock = itemData.currentStock - itemData.quantity;
                         
-                        transaction.update(itemRef, { quantity: newStock });
-        
+                        if (itemData.isVariant) {
+                            const newQuantityArray = itemData.currentStock.map(variant => {
+                                if (itemData.providedVariants[variant.key]) {
+                                    return { ...variant, value: variant.value - itemData.providedVariants[variant.key] };
+                                }
+                                return variant;
+                            });
+                            transaction.update(itemRef, { quantity: newQuantityArray });
+                        } else {
+                            const newStock = itemData.currentStock - itemData.quantity;
+                            transaction.update(itemRef, { quantity: newStock });
+                        }
+                
                         const ledgerRef = mainDocRef.collection('ledger').doc();
                         const ledgerEntry = {
                             id: ledgerRef.id,
@@ -4457,7 +5634,8 @@
                             person: personName,
                             date: new Date().toISOString(),
                             isUrgent: isUrgent,
-                            requisitionId: requisitionIdAsNumber
+                            requisitionId: requisitionIdAsNumber,
+                            details: itemData.isVariant ? itemData.providedVariants : null
                         };
                         transaction.set(ledgerRef, ledgerEntry);
                     }
@@ -4595,6 +5773,8 @@
             }
         
             const container = document.getElementById('requisition-items-container');
+            const scrollableDiv = container.querySelector('.table-container');
+            const currentScrollTop = scrollableDiv ? scrollableDiv.scrollTop : 0;            
             const monthNames = ["জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"];
             const month = monthNames[new Date().getMonth()];
             const year = toBengaliNumber(new Date().getFullYear());
@@ -4650,27 +5830,41 @@
         
                     sectionItems.forEach(item => {
                         itemCounter++;
-                        const stockInfo = `${toBengaliNumber(item.quantity)} ${item.unit || 'পিস'}`;
                         const savedReq = tempRequisitionData[item.id] || '';
                         const isExcluded = excludedItems.includes(item.id);
                         const rowClass = isExcluded ? 'item-excluded' : '';
                         const itemNameStyle = (item.name.length > 25) ? 'font-size: 11px;' : '';
-        
+                    
+                        const isVariant = Array.isArray(item.quantity);
+                        const stockInfo = isVariant
+                            ? item.quantity.map(v => `${v.key}: ${toBengaliNumber(v.value)}`).join(', ')
+                            : `${toBengaliNumber(item.quantity)} ${item.unit || 'পিস'}`;
+                        
+                        let demandInputHTML;
+                        if (isVariant) {
+                            const savedReqObject = tempRequisitionData[item.id];
+                            const buttonText = savedReqObject ? 'এডিট' : 'চাহিদা দিন';
+                            const buttonClass = savedReqObject ? 'background: var(--success-color);' : 'background: #007bff;';
+                            demandInputHTML = `<button class="action-btn" style="font-size: 11px; padding: 6px 10px; ${buttonClass}" onclick="openVariantRequisitionModal('${item.id}')">${buttonText}</button>`;
+                        } else {
+                            demandInputHTML = `
+                                <input 
+                                    type="number" 
+                                    class="req-quantity-input" 
+                                    value="${savedReq}"
+                                    oninput="saveTempRequisition('${item.id}', this.value)"
+                                    onkeydown="handleRequisitionEnter(event, this)"
+                                    placeholder="পরিমাণ" 
+                                    min="0" 
+                                    style="padding: 6px; font-size: 12px; width: 50px; text-align: center; border-radius: 6px; border: 1px solid #ccc;">
+                            `;
+                        }
+                        
                         tableHTML += `
                             <tr data-item-id="${item.id}" class="${rowClass}">
                                 <td style="text-align: center; padding: 8px 2px; vertical-align: middle;">${toBengaliNumber(itemCounter)}</td>
                                 <td style="padding-left: 2px; vertical-align: middle; ${itemNameStyle}">${item.name} <strong style="color: #0056b3;">(${stockInfo})</strong></td>
-                                <td style="text-align: center; vertical-align: middle;">
-                                    <input 
-                                        type="number" 
-                                        class="req-quantity-input" 
-                                        value="${savedReq}"
-                                        oninput="saveTempRequisition('${item.id}', this.value)"
-                                        onkeydown="handleRequisitionEnter(event, this)"
-                                        placeholder="পরিমাণ" 
-                                        min="0" 
-                                        style="padding: 6px; font-size: 12px; width: 50px; text-align: center; border-radius: 6px; border: 1px solid #ccc;">
-                                </td>
+                                <td style="text-align: center; vertical-align: middle;">${demandInputHTML}</td>
                                 <td style="text-align: center; vertical-align: middle; padding: 8px 2px;">
                                     <button onclick="toggleExcludeItem(this, '${item.id}')" style="background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 5px; color: var(--danger-color);">
                                         ${isExcluded ? '🔄' : '❌'}
@@ -4684,6 +5878,10 @@
         
             tableHTML += `</tbody></table></div>`;
             container.innerHTML = searchBarHTML + tableHTML;
+            const newScrollableDiv = container.querySelector('.table-container');
+            if (newScrollableDiv) {
+                newScrollableDiv.scrollTop = currentScrollTop;
+            }            
             openModal('requisitionInputModal');
         }
 
@@ -4919,6 +6117,88 @@
             }, 500);
         }
 
+        function handleRequisitionSearchUI(value) {
+            const searchBtn = document.getElementById('req-search-btn');
+            const statusDiv = document.getElementById('req-id-status');
+            const reqValue = value.trim();
+        
+            // প্রথমে পুরনো ফাংশনটিকে কল করা হচ্ছে যাতে নতুন নম্বর চেক করার সুবিধাটি ঠিক থাকে
+            checkRequisitionId();
+        
+            if (!reqValue) {
+                searchBtn.style.display = 'none';
+                return;
+            }
+        
+            const reqIdAsNumber = parseInt(reqValue, 10);
+            if (isNaN(reqIdAsNumber)) {
+                searchBtn.style.display = 'none';
+                return;
+            }
+        
+            const isExisting = ledger.some(entry => entry.requisitionId === reqIdAsNumber);
+        
+            if (isExisting) {
+                searchBtn.style.display = 'block';
+                statusDiv.textContent = 'এটি একটি ব্যবহৃত নম্বর। তথ্য দেখতে সার্চ করুন।';
+                statusDiv.style.color = 'var(--warning-color)';
+            } else {
+                searchBtn.style.display = 'none';
+            }
+        }
+        
+        function searchRequisitionByNumber() {
+            const reqInput = document.getElementById('pi-requisition-id');
+            const resultContainer = document.getElementById('requisition-search-result-container');
+            const reqId = parseInt(reqInput.value.trim(), 10);
+        
+            resultContainer.innerHTML = ''; // পুরনো ফলাফল মুছে ফেলা হলো
+        
+            if (isNaN(reqId)) {
+                showToast('অনুগ্রহ করে একটি সঠিক রিকুইজিশন নম্বর দিন।', 'error');
+                return;
+            }
+        
+            const entries = ledger.filter(entry => entry.requisitionId === reqId);
+        
+            if (entries.length === 0) {
+                resultContainer.innerHTML = `<div class="card" style="background-color: var(--level-very-low-bg);"><p style="text-align: center; margin: 0; padding: 10px; font-weight: 500;">রিকুইজিশন নম্বর '${toBengaliNumber(reqId)}' এর জন্য কোনো তথ্য পাওয়া যায়নি।</p></div>`;
+                return;
+            }
+        
+            const firstEntry = entries[0];
+            const person = firstEntry.person;
+            const date = new Date(firstEntry.date).toLocaleDateString('bn-BD', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            });
+        
+            let itemsHTML = '';
+            entries.forEach(entry => {
+                let detailsText = '';
+                if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
+                    const detailsParts = Object.entries(entry.details)
+                        .map(([key, value]) => `${key}: ${toBengaliNumber(value)}`)
+                        .join(', ');
+                    detailsText = ` <small>(${detailsParts})</small>`;
+                }
+                itemsHTML += `<li style="padding: 5px 0; border-bottom: 1px solid #eee;">${entry.itemName}${detailsText} - <strong>${toBengaliNumber(Math.abs(entry.change))} ${allItems.find(i => i.id === entry.itemId)?.unit || 'পিস'}</strong></li>`;
+            });
+        
+            const resultCardHTML = `
+                <div class="card" style="background: #eef; border-left: 5px solid #0056b3;">
+                    <div style="padding: 10px;">
+                        <p style="margin: 0 0 5px 0;"><strong>রিকুইজিশন নং:</strong> ${toBengaliNumber(reqId)}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>কর্মচারী:</strong> ${person} | <strong>তারিখ:</strong> ${date}</p>
+                        <ul style="list-style-type: disc; margin: 0; padding-left: 20px; font-size: 13px;">
+                            ${itemsHTML}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        
+            resultContainer.innerHTML = resultCardHTML;
+        }
+
         function handleRequisitionEnter(event, currentInput) {
             if (event.key === 'Enter') {
                 event.preventDefault();
@@ -4936,6 +6216,98 @@
                     }
                 }
             }
+        }
+
+        function openVariantRequisitionModal(itemId) {
+            const item = allItems.find(i => i.id === itemId);
+            if (!item) return;
+        
+            const modal = document.getElementById('variantRequisitionModal');
+            const title = document.getElementById('variant-req-title');
+            const body = document.getElementById('variant-req-body');
+            const saveBtn = document.getElementById('save-variant-req-btn');
+        
+            title.textContent = `${item.name} - চাহিদা দিন (${item.unit})`;
+        
+            const savedReqs = tempRequisitionData[itemId] || {};
+            
+            let bodyHTML = '<div class="form-group" style="padding:0; box-shadow:none;">';
+            
+            const colorMapping = {
+                'R': '#e4000f', 'RED': '#e4000f', 'লাল': '#e4000f',
+                'Y': '#ffc107', 'YELLOW': '#ffc107', 'হলুদ': '#ffc107',
+                'B': '#007bff', 'BLUE': '#007bff', 'নীল': '#007bff',
+                'BK': '#343a40', 'BLACK': '#343a40', 'কালো': '#343a40',
+                'G': '#28a745', 'GREEN': '#28a745', 'সবুজ': '#28a745'
+            };
+        
+            item.quantity.forEach(variant => {
+                const variantKeyUpper = (variant.key || '').toUpperCase();
+                const labelColor = colorMapping[variantKeyUpper] || '#333';
+                const savedValue = savedReqs[variant.key] || '';
+                
+                bodyHTML += `
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <label style="font-weight: 600; text-align: right; color: ${labelColor};">${variant.name || variant.key} (স্টক: ${toBengaliNumber(variant.value)}):</label>
+                        <input type="number" class="variant-req-input" data-variant-key="${variant.key}" value="${savedValue}" placeholder="পরিমাণ" step="any" style="font-size: 16px; text-align: center;">
+                    </div>
+                `;
+            });
+            bodyHTML += '</div>';
+            body.innerHTML = bodyHTML;
+        
+            const inputs = Array.from(body.querySelectorAll('.variant-req-input'));
+            inputs.forEach((input, index) => {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const nextInput = inputs[index + 1];
+                        if (nextInput) {
+                            nextInput.focus();
+                            nextInput.select();
+                        } else {
+                            saveBtn.click();
+                        }
+                    }
+                });
+            });
+        
+            saveBtn.onclick = () => {
+                const newReqs = {};
+                let hasValue = false;
+                inputs.forEach(input => {
+                    const key = input.dataset.variantKey;
+                    const value = input.value;
+                    if (value && parseFloat(value) > 0) {
+                        newReqs[key] = value;
+                        hasValue = true;
+                    }
+                });
+        
+                if (hasValue) {
+                    saveTempRequisition(itemId, newReqs);
+                } else {
+                    saveTempRequisition(itemId, null);
+                }
+                
+                closeModal('variantRequisitionModal');
+                const mainModalBody = document.getElementById('requisition-items-container');
+                const targetRow = mainModalBody.querySelector(`tr[data-item-id="${itemId}"]`);
+                if (targetRow) {
+                    const button = targetRow.querySelector('button');
+                    if (button) {
+                        if (hasValue) {
+                            button.textContent = 'এডিট';
+                            button.style.background = 'var(--success-color)';
+                        } else {
+                            button.textContent = 'চাহিদা দিন';
+                            button.style.background = '#007bff';
+                        }
+                    }
+                }
+            };
+        
+            openModal('variantRequisitionModal');
         }
 
         function generateRequisitionReport(reportToRegenerate = null) {
@@ -4982,19 +6354,23 @@
                         if (filterByQuantity) {
                             filteredSectionItems = sectionItems.filter(item => {
                                 const reqQnt = tempRequisition[item.id];
-                                return reqQnt && parseInt(reqQnt, 10) > 0;
+                                if (!reqQnt) return false;
+                                if (typeof reqQnt === 'object') {
+                                    return Object.values(reqQnt).some(val => parseFloat(val) > 0);
+                                }
+                                return parseFloat(reqQnt) > 0;
                             });
                         }
                         
                         if (filteredSectionItems.length > 0) {
-                            filteredSectionItems.forEach((item, itemIndex) => {
-                                const reqQnt = tempRequisition[item.id] ? parseInt(tempRequisition[item.id], 10) : '';
-                                reportItems.push({
-                                    id: item.id, name: item.name, stock: item.quantity || 0,
-                                    unit: item.unit || 'পিস', reqQnt: reqQnt,
-                                    isLastInSection: itemIndex === filteredSectionItems.length - 1
-                                });
-                            });
+                          filteredSectionItems.forEach((item, itemIndex) => {
+                              const reqQnt = tempRequisition[item.id];
+                              reportItems.push({
+                                  id: item.id, name: item.name, stock: item.quantity,
+                                  unit: item.unit || 'পিস', reqQnt: reqQnt,
+                                  isLastInSection: itemIndex === filteredSectionItems.length - 1
+                              });
+                          });
                         }
                     });
                 }
@@ -5008,13 +6384,41 @@
                 const body = reportItems.map(item => {
                     itemCounter++;
                     const unit = unitMap[item.unit.toLowerCase()] || item.unit;
+                    
+                    const originalItem = allItems.find(i => i.id === item.id);
+                    const isVariant = Array.isArray(originalItem.quantity);
+                    
+                    let stockValue, reqValue;
+                
+                    if (isVariant) {
+                        const variantOrder = originalItem.quantity.map(v => v.key);
+                        
+                        stockValue = variantOrder
+                            .map(key => {
+                                const variant = originalItem.quantity.find(v => v.key === key);
+                                return `${key}:${variant ? variant.value : 0}`;
+                            })
+                            .join(', ');
+                
+                        const reqData = item.reqQnt || {};
+                        
+                        reqValue = variantOrder
+                            .filter(key => reqData[key] && parseFloat(reqData[key]) > 0)
+                            .map(key => `${key}:${reqData[key]}`)
+                            .join(', ');
+                
+                    } else {
+                        stockValue = item.stock;
+                        reqValue = item.reqQnt;
+                    }
+                
                     return {
-                        no: itemCounter, name: item.name, stock: item.stock,
-                        unit: unit, reqQnt: item.reqQnt, remarks: '',
+                        no: itemCounter, name: item.name, stock: stockValue,
+                        unit: unit, reqQnt: reqValue, remarks: '',
                         isLastInSection: item.isLastInSection
                     };
                 });
-        
+
                 const reportFormat = document.getElementById('final-report-format').value;
                 const monthNames = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
                 const monthStr = monthNames[reportMonth];
@@ -5106,10 +6510,12 @@
                             theme: 'grid',
                             ...tableConfig,
                             didDrawCell: function (data) {
-                                const originalItem = body.find(item => item.no === data.cell.raw[0]);
-                                if (originalItem && originalItem.isLastInSection && data.column.index === data.table.columns.length - 1) {
-                                    doc.setLineWidth(0.5);
-                                    doc.line(data.table.margins.left, data.cell.y + data.cell.height, data.table.width + data.table.margins.left, data.cell.y + data.cell.height);
+                                if (data.cell.raw) {
+                                    const originalItem = body.find(item => item.no === data.cell.raw.no);
+                                    if (originalItem && originalItem.isLastInSection && data.column.index === data.table.columns.length - 1) {
+                                        doc.setLineWidth(0.5);
+                                        doc.line(data.table.margins.left, data.cell.y + data.cell.height, data.table.width + data.table.margins.left, data.cell.y + data.cell.height);
+                                    }
                                 }
                             },
                             didDrawPage: function (data) {
@@ -5151,12 +6557,20 @@
         
                 if (!isRegenerating) {
                     const dbPath = getDbPath();
+                    if (!dbPath || !navigator.onLine) {
+                        closeModal('requisitionInputModal');
+                        return showToast('রিপোর্ট আর্কাইভ করতে ইন্টারনেট সংযোগ প্রয়োজন।', 'error');
+                    }
                     const newReport = {
                         id: `rep_${Date.now()}`,
                         month: reportMonth,
                         year: reportYear,
                         items: reportItems
                     };
+                    
+                    closeModal('requisitionInputModal');
+                    showToast('রিপোর্ট জেনারেট ও আর্কাইভ করা হচ্ছে...', 'warning');
+                
                     const localArchived = JSON.parse(localStorage.getItem('archivedReports') || '[]');
                     const existingReportIndex = localArchived.findIndex(r => r.month === reportMonth && r.year === reportYear);
                     if (existingReportIndex > -1) {
@@ -5166,18 +6580,27 @@
                     }
                     localStorage.setItem('archivedReports', JSON.stringify(localArchived));
                     archivedReports = localArchived;
-        
-                    if (navigator.onLine && dbPath) {
-                        dbPath.collection('archivedReports').doc(newReport.id).set(newReport).catch(err => console.error(err));
-                    }
-        
-                    closeModal('requisitionInputModal');
-                    showToast('রিপোর্ট সফলভাবে জেনারেট ও আর্কাইভ করা হয়েছে।');
                     renderArchivedReports();
+                
+                    dbPath.collection('archivedReports').doc(newReport.id).set(newReport)
+                        .then(() => {
+                            showToast('রিপোর্ট সফলভাবে আর্কাইভ করা হয়েছে।', 'success');
+                        })
+                        .catch(err => {
+                            console.error("Error archiving report:", err);
+                            showToast('রিপোর্ট আর্কাইভ করতে ক্লাউডে সমস্যা হয়েছে।', 'error');
+                        });
                 }
+
             };
         
-            executeReport();
+            if (isRegenerating) {
+                executeReport();
+            } else {
+                closeModal('requisitionInputModal');
+                setTimeout(executeReport, 100);
+            }
+
         }
         function clearRequisitionInputs() {
             if (!confirm("আপনি কি নিশ্চিত যে সকল চাহিদার পরিমাণ মুছে ফেলতে চান?")) return;
@@ -5325,48 +6748,32 @@
         }
       
         function showApp() {
+            document.getElementById('main-app-wrapper').style.display = 'block';
             document.documentElement.style.overflow = '';
             document.body.style.overflow = '';
             document.getElementById('auth-modal-overlay').style.display = 'none';
             document.getElementById('main-app-wrapper').style.filter = 'none';
             document.getElementById('main-app-wrapper').style.pointerEvents = 'auto';
         
-            sections = JSON.parse(localStorage.getItem('sections') || '[]');
-            allItems = JSON.parse(localStorage.getItem('items') || '[]');
-            users = JSON.parse(localStorage.getItem('app_users') || '[]');
-            ledger = JSON.parse(localStorage.getItem('ledger') || '[]');
-            archivedReports = JSON.parse(localStorage.getItem('archivedReports') || '[]');
-            
-            sectionOrder = JSON.parse(localStorage.getItem('sectionOrder') || '[]');
-            itemOrders = JSON.parse(localStorage.getItem('itemOrders') || '{}');
+            offlineDB.init(); 
         
-            renderInventoryPage();
-            initializeSortableList();
-            populateItemSortSectionDropdown();      
-            renderUsersPage();
-            renderArchivedReports();
-            updateSlidingNotifications();
-        
-            if (auth.currentUser && navigator.onLine) {
+            if (currentUser && getDbPath()) {
+                const syncStatusEl = document.getElementById('sync-status');
+                syncStatusEl.textContent = 'সিঙ্ক হচ্ছে...';
+                syncStatusEl.className = 'sync-status-indicator syncing';
                 listenForLiveUpdates();
             }
         }
         
         function showLogin() {
+            document.getElementById('main-app-wrapper').style.display = 'block';
             document.documentElement.style.overflow = 'hidden';
             document.body.style.overflow = 'hidden';
             document.getElementById('auth-modal-overlay').style.display = 'flex';
             document.getElementById('main-app-wrapper').style.filter = 'blur(5px)';
             document.getElementById('main-app-wrapper').style.pointerEvents = 'none';
-        
             detachListeners();
-        
-            allItems = [];
-            sections = [];
-            users = [];
-            ledger = [];
-            archivedReports = [];
-        
+            allItems = [], sections = [], users = [], ledger = [], archivedReports = [];
             renderInventoryPage();
             renderUsersPage();
             renderArchivedReports();
@@ -5503,6 +6910,79 @@
                 };
         
                 pinInput.addEventListener('input', handleInput);
+                pinCloseBtn.addEventListener('click', handleCancel);
+            });
+        }
+
+        function requestSpecialClearancePin() {
+            const pinModal = document.getElementById('pin-prompt-modal');
+            const pinInput = document.getElementById('pin-input');
+            const pinErrorMsg = document.getElementById('pin-error-msg');
+            const pinCloseBtn = document.getElementById('pin-close-btn');
+            const pinTitle = document.getElementById('pin-modal-title');
+        
+            pinTitle.textContent = 'বিশেষ ক্লিয়ারেন্স পিন দিন';
+            openModal('pin-prompt-modal');
+            pinInput.value = '';
+            pinErrorMsg.textContent = '';
+            pinInput.focus();
+        
+            return new Promise((resolve) => {
+                let isProcessing = false;
+        
+                const handleValidation = () => {
+                    if (isProcessing) return;
+                    isProcessing = true;
+        
+                    if (pinInput.value === SPECIAL_CLEAR_PIN) {
+                        pinErrorMsg.textContent = '';
+                        setTimeout(() => {
+                            closeModal('pin-prompt-modal');
+                            pinTitle.textContent = 'নিরাপত্তা পিন দিন';
+                            cleanup();
+                            resolve(true);
+                        }, 100);
+                    } else {
+                        pinErrorMsg.textContent = 'ভুল পিন!';
+                        pinInput.classList.add('shake-error');
+                        
+                        setTimeout(() => {
+                            pinInput.classList.remove('shake-error');
+                            pinInput.value = '';
+                            pinInput.focus();
+                            isProcessing = false;
+                        }, 500);
+                    }
+                };
+        
+                const handleInput = (event) => {
+                    pinErrorMsg.textContent = '';
+                    if (event.target.value.length === 4) {
+                        handleValidation();
+                    }
+                };
+                
+                const handleEnter = (event) => {
+                    if (event.key === 'Enter' && pinInput.value.length === 4) {
+                        handleValidation();
+                    }
+                };
+        
+                const handleCancel = () => {
+                    closeModal('pin-prompt-modal');
+                    pinTitle.textContent = 'নিরাপত্তা পিন দিন';
+                    cleanup();
+                    resolve(false);
+                };
+        
+                const cleanup = () => {
+                    pinInput.removeEventListener('input', handleInput);
+                    pinInput.removeEventListener('keydown', handleEnter);
+                    pinCloseBtn.removeEventListener('click', handleCancel);
+                };
+        
+                pinInput.addEventListener('input', handleInput);
+                pinInput.addEventListener('keydown', handleEnter);
                 pinCloseBtn.addEventListener('click', handleCancel);
             });
         }
@@ -5725,16 +7205,28 @@
         
             resultsContainer.innerHTML = '';
         
-            // যদি সার্চ বক্স খালি থাকে
+            const createItemDiv = (item) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'custom-search-item';
+                const isVariant = Array.isArray(item.quantity);
+                const stockInfo = isVariant
+                    ? item.quantity.map(v => `${v.key}: ${toBengaliNumber(v.value)}`).join(', ')
+                    : `${toBengaliNumber(item.quantity)} ${item.unit || 'পিস'}`;
+                
+                itemDiv.innerHTML = `
+                    ${item.name}
+                    <small>সেকশন: ${item.section} (স্টক: ${stockInfo})</small>
+                `;
+                itemDiv.onclick = () => selectItem(input, item);
+                return itemDiv;
+            };
+        
             if (searchTerm.length === 0) {
-                // sectionOrder অনুযায়ী সেকশনগুলো সাজিয়ে নিন
                 const sortedSections = [...sectionOrder];
                 
-                // প্রতিটি সেকশনের জন্য আইটেমগুলো দেখান
                 sortedSections.forEach(sectionName => {
                     const itemsInSection = allItems.filter(item => item.section === sectionName);
                     
-                    // আইটেমগুলোকে তাদের নিজস্ব ক্রম অনুযায়ী সাজান
                     const customItemOrder = itemOrders[sectionName] || [];
                     const defaultSortFunc = masterSortFunction(sectionName);
                     if (customItemOrder.length > 0) {
@@ -5751,52 +7243,88 @@
                     }
         
                     itemsInSection.forEach(item => {
-                        const itemDiv = document.createElement('div');
-                        itemDiv.className = 'custom-search-item';
-                        itemDiv.innerHTML = `
-                            ${item.name}
-                            <small>সেকশন: ${item.section} (স্টক: ${toBengaliNumber(item.quantity)} ${item.unit})</small>
-                        `;
-                        itemDiv.onclick = () => selectItem(input, item);
-                        resultsContainer.appendChild(itemDiv);
+                        resultsContainer.appendChild(createItemDiv(item));
                     });
                 });
                 resultsContainer.classList.add('show');
                 return;
             }
         
-            // যদি সার্চ বক্সে লেখা থাকে (ফিল্টারিং)
             const filtered = allItems.filter(item => item.name.toLowerCase().includes(searchTerm));
             
             if (filtered.length > 0) {
                 filtered.forEach(item => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'custom-search-item';
-                    itemDiv.innerHTML = `
-                        ${item.name}
-                        <small>সেকশন: ${item.section} (স্টক: ${toBengaliNumber(item.quantity)} ${item.unit})</small>
-                    `;
-                    itemDiv.onclick = () => selectItem(input, item);
-                    resultsContainer.appendChild(itemDiv);
+                    resultsContainer.appendChild(createItemDiv(item));
                 });
                 resultsContainer.classList.add('show');
             } else {
                 resultsContainer.classList.remove('show');
             }
         }
-        
+
         function selectItem(input, item) {
             const formCard = input.closest('.item-form-card');
             input.value = item.name;
             formCard.querySelector('.selected-item-id').value = item.id;
             formCard.querySelector('.custom-search-results').classList.remove('show');
-            formCard.querySelector('.pi-quantity-dynamic').focus();
+        
+            const isVariant = Array.isArray(item.quantity);
+            const dynamicInputContainer = formCard.querySelector('.pi-quantity-dynamic');
+            const singleInput = formCard.querySelector('.pi-quantity-single');
+        
+            if (isVariant) {
+                singleInput.style.display = 'none';
+                singleInput.value = '';
+        
+                const colors = { 'R': '#e4000f', 'Y': '#ffc107', 'B': '#007bff', 'BK': '#343a40', 'G': '#28a745' };
+                const textColors = { 'Y': '#000000' };
+                
+                let variantHTML = '<div class="variant-inputs" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; margin-top: 8px;">';
+                item.quantity.forEach(variant => {
+                    const stock = variant.value;
+                    const variantKey = variant.key;
+                    
+                    const bgColor = colors[variantKey.toUpperCase()] || '#6c757d';
+                    const textColor = textColors[variantKey.toUpperCase()] || '#ffffff';
+        
+                    variantHTML += `
+                        <div style="text-align: center;">
+                            <div style="border: 1px solid #ddd; border-radius: 6px; padding: 5px; background: #f8f9fa;">
+                                <label style="font-weight: bold; display: block; font-size: 12px; background-color: ${bgColor}; color: ${textColor}; padding: 4px; border-radius: 4px; margin-bottom: 4px;">${variantKey} (স্টক: ${toBengaliNumber(stock)})</label>
+                                <input type="number" class="pi-variant-quantity" data-variant-key="${variantKey}" placeholder="পরিমাণ" min="0" max="${stock}" style="width: 100%; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 4px;" oninput="validateStockOnInput(this)">
+                            </div>
+                            <div class="quantity-feedback"></div>
+                        </div>
+                    `;
+                });
+                variantHTML += '</div>';
+                
+                dynamicInputContainer.innerHTML = variantHTML;
+                dynamicInputContainer.style.display = 'block';
+                
+                dynamicInputContainer.querySelectorAll('input.pi-variant-quantity').forEach(input => validateStockOnInput(input));
+        
+            } else {
+                dynamicInputContainer.style.display = 'none';
+                dynamicInputContainer.innerHTML = '';
+                
+                singleInput.style.display = 'block';
+                
+                let feedbackDiv = singleInput.nextElementSibling;
+                if (!feedbackDiv || !feedbackDiv.classList.contains('quantity-feedback')) {
+                    feedbackDiv = document.createElement('div');
+                    feedbackDiv.className = 'quantity-feedback';
+                    singleInput.parentElement.insertBefore(feedbackDiv, singleInput.nextSibling);
+                }
+                
+                validateStockOnInput(singleInput);
+                singleInput.focus();
+            }
         
             const modal = document.getElementById('provideItemModal');
             modal.classList.remove('modal-expanded');
             modal.classList.add('modal-compact');
         }
-
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -5911,36 +7439,6 @@
             });
         });
         
-        function showApp() {
-            document.getElementById('main-app-wrapper').style.display = 'block';
-            document.documentElement.style.overflow = '';
-            document.body.style.overflow = '';
-            document.getElementById('auth-modal-overlay').style.display = 'none';
-            document.getElementById('main-app-wrapper').style.filter = 'none';
-            document.getElementById('main-app-wrapper').style.pointerEvents = 'auto';
-        
-            if (currentUser && getDbPath()) {
-                listenForLiveUpdates();
-            } else {
-                offlineDB.init();
-            }
-        }
-        
-        function showLogin() {
-            document.getElementById('main-app-wrapper').style.display = 'block';
-            document.documentElement.style.overflow = 'hidden';
-            document.body.style.overflow = 'hidden';
-            document.getElementById('auth-modal-overlay').style.display = 'flex';
-            document.getElementById('main-app-wrapper').style.filter = 'blur(5px)';
-            document.getElementById('main-app-wrapper').style.pointerEvents = 'none';
-            detachListeners();
-            allItems = [], sections = [], users = [], ledger = [], archivedReports = [];
-            renderInventoryPage();
-            renderUsersPage();
-            renderArchivedReports();
-            updateSlidingNotifications();
-        }
-
     </script>
 </body>
 </html>
