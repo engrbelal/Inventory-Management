@@ -2084,17 +2084,36 @@
         
             baseSelect.empty().off();
             mergeSelect.empty().off();
-            
             keysContainer.style.display = 'none';
             keysList.innerHTML = '';
         
-            const itemsForSelect = allItems
+            const sortedItemsForSelect = [...allItems]
                 .filter(item => !Array.isArray(item.quantity))
-                .sort((a, b) => a.name.localeCompare(b.name))
+                .sort((a, b) => {
+                    const sectionIndexA = sectionOrder.indexOf(a.section);
+                    const sectionIndexB = sectionOrder.indexOf(b.section);
+        
+                    if (sectionIndexA !== -1 && sectionIndexB !== -1 && sectionIndexA !== sectionIndexB) {
+                        return sectionIndexA - sectionIndexB;
+                    }
+        
+                    const itemOrderListA = itemOrders[a.section] || [];
+                    const itemOrderListB = itemOrders[b.section] || [];
+                    const itemIndexA = itemOrderListA.indexOf(a.id);
+                    const itemIndexB = itemOrderListB.indexOf(b.id);
+        
+                    if (itemIndexA !== -1 && itemIndexB !== -1) {
+                        return itemIndexA - itemIndexB;
+                    }
+                    if (itemIndexA !== -1) return -1;
+                    if (itemIndexB !== -1) return 1;
+        
+                    return masterSortFunction(a.section)(a, b);
+                })
                 .map(item => ({ id: item.id, text: `${item.name} (স্টক: ${toBengaliNumber(item.quantity)})` }));
         
             baseSelect.select2({
-                data: itemsForSelect,
+                data: sortedItemsForSelect,
                 placeholder: '-- মূল আইটেম বাছাই করুন --',
                 dropdownParent: modalElement
             });
@@ -2108,11 +2127,13 @@
             const updateKeysUI = () => {
                 const baseId = baseSelect.val();
                 const mergeIds = mergeSelect.val() || [];
+                
                 const allSelectedIds = [baseId, ...mergeIds].filter(Boolean);
         
                 keysList.innerHTML = '';
                 if (allSelectedIds.length > 1) {
                     keysContainer.style.display = 'block';
+                    
                     allSelectedIds.forEach(id => {
                         const item = allItems.find(i => i.id === id);
                         if (item) {
@@ -2137,14 +2158,16 @@
         
             baseSelect.on('change', function() {
                 const selectedBaseId = $(this).val();
+                const currentMergeIds = mergeSelect.val() || [];
+                const filteredMergeIds = currentMergeIds.filter(id => id !== selectedBaseId);
                 
-                const filteredItemsForMerge = itemsForSelect.filter(item => item.id !== selectedBaseId);
+                const filteredItemsForMerge = sortedItemsForSelect.filter(item => item.id !== selectedBaseId);
                 
                 mergeSelect.empty().select2({
                     data: filteredItemsForMerge,
                     placeholder: '-- মার্জ করার জন্য আইটেম বাছাই করুন --',
                     dropdownParent: modalElement
-                });
+                }).val(filteredMergeIds).trigger('change');
                 
                 updateKeysUI();
         
@@ -2154,22 +2177,19 @@
             });
         
             mergeSelect.on('change', updateKeysUI);
+            mergeSelect.on('select2:select select2:unselect', updateKeysUI);
         
             baseSelect.on('select2:open', () => {
                 const searchField = document.querySelector('.select2-container--open .select2-search__field');
                 if (searchField) {
-                    setTimeout(() => {
-                        searchField.focus();
-                    }, 50);
+                    setTimeout(() => searchField.focus(), 50);
                 }
             });
         
             mergeSelect.on('select2:open', () => {
                 const searchField = document.querySelector('.select2-container--open .select2-search__field');
                 if (searchField) {
-                    setTimeout(() => {
-                        searchField.focus();
-                    }, 50);
+                    setTimeout(() => searchField.focus(), 50);
                 }
             });
         
@@ -2228,8 +2248,9 @@
                         allItemsData.push({ id: itemDoc.id, ...itemDoc.data() });
                     }
         
-                    const finalQuantityArray = allItemsData.map(item => {
-                        const keyInput = document.querySelector(`#merge-variant-keys-container input[data-item-id="${item.id}"]`);
+                    const finalQuantityArray = allItemIdsToProcess.map(id => {
+                        const item = allItemsData.find(i => i.id === id);
+                        const keyInput = document.querySelector(`#merge-variant-keys-container input[data-item-id="${id}"]`);
                         if (!keyInput) throw new Error("UI এবং ডেটার মধ্যে অসামঞ্জস্য।");
                         return {
                             key: keyInput.value.trim(),
