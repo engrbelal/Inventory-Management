@@ -6268,9 +6268,9 @@
                 const savedValue = savedReqs[variant.key] || '';
                 
                 bodyHTML += `
-                    <div style="display: grid; grid-template-columns: 1fr 2fr; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; align-items: center; gap: 10px; margin-bottom: 8px;">
                         <label style="font-weight: 600; text-align: right; color: ${labelColor};">${variant.name || variant.key} (স্টক: ${toBengaliNumber(variant.value)}):</label>
-                        <input type="number" class="variant-req-input" data-variant-key="${variant.key}" value="${savedValue}" placeholder="পরিমাণ" step="any" style="font-size: 16px; text-align: center;">
+                        <input type="number" class="variant-req-input" data-variant-key="${variant.key}" value="${savedValue}" placeholder="পরিমাণ" step="any" style="font-size: 14px; text-align: center; padding: 8px 4px; max-width: 80px; justify-self: center;">
                     </div>
                 `;
             });
@@ -6520,9 +6520,12 @@
                         tableConfig.styles = { ...tableConfig.styles, halign: 'center', valign: 'middle' };
                         tableConfig.headStyles = { ...tableConfig.headStyles, fillColor: [220, 220, 220], textColor: 0, fontStyle: 'bold' };
                         tableConfig.columnStyles = {
-                            0: { cellWidth: 8 }, 1: { cellWidth: 82, halign: 'left' },
-                            2: { cellWidth: 18 }, 3: { cellWidth: 12 },
-                            4: { cellWidth: 18 }, 5: { cellWidth: 'auto', halign: 'left' }
+                            0: { cellWidth: 8 }, 
+                            1: { cellWidth: 65, halign: 'left' },
+                            2: { cellWidth: 28, cellPadding: 0.5 },
+                            3: { cellWidth: 14 }, 
+                            4: { cellWidth: 28, cellPadding: 0.5 },
+                            5: { cellWidth: 47, halign: 'left' }
                         };
         
                         doc.autoTable({
