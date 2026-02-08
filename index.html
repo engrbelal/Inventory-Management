@@ -851,6 +851,114 @@
             height: 14px;
             transition: color 0.3s ease;
         }
+        @media (min-width: 769px) {
+            :root {
+                --base-font-size: 14px;
+            }
+        
+            body {
+                padding-top: 120px;
+            }
+        
+            .header {
+                padding: 18px 30px;
+            }
+        
+            .header h1 {
+                font-size: 24px;
+            }
+        
+            .main-nav {
+                top: 68px;
+            }
+        
+            .nav-tab {
+                padding: 18px 10px;
+                font-size: 16px;
+            }
+        
+            .container {
+                max-width: 1400px;
+                padding: 25px;
+            }
+        
+            .action-bar {
+                margin-bottom: 25px;
+            }
+        
+            .action-btn, .add-item-btn, .provide-item-btn {
+                font-size: 15px;
+                padding: 12px 24px;
+            }
+        
+            .card-header h2 {
+                font-size: 20px;
+            }
+        
+            table {
+                font-size: 14px;
+            }
+        
+            th, td {
+                padding: 14px 16px;
+            }
+        
+            .modal-content {
+                max-width: 650px;
+            }
+        
+            .modal-header h2 {
+                font-size: 18px;
+            }
+        
+            .modal-body {
+                padding: 20px 25px;
+            }
+        
+            .modal-footer {
+                padding: 15px 25px;
+            }
+        
+            .modal-footer button {
+                font-size: 14px;
+            }
+        
+            #requisitionInputModal .modal-content {
+                max-width: 900px;
+            }
+        
+            #itemMergeModal .modal-content,
+            #itemSplitModal .modal-content {
+                max-width: 750px;
+            }
+        
+            .form-group input, .form-group select, .item-form-card input, .item-form-card select, #searchInput {
+                font-size: 14px;
+                padding: 10px 12px;
+            }
+        
+            .select2-container .select2-selection--single {
+                height: 44px;
+            }
+            .select2-container--default .select2-selection--single .select2-selection__rendered {
+                line-height: 44px;
+            }
+            .select2-container--default .select2-selection--single .select2-selection__arrow {
+                height: 44px;
+            }
+        
+            .ledger-desc {
+                font-size: 14px;
+            }
+        
+            .ledger-qty {
+                font-size: 16px;
+            }
+            
+            .createVariantBadges strong {
+                font-size: 14px !important;
+            }
+        }
 
     </style>
 </head>
@@ -1174,7 +1282,7 @@
                             <select id="pi-user-main"></select>
                         </div>
                         <div class="form-group" id="requisition-id-group" style="margin: 0; padding: 0; box-shadow: none; position: relative; display: flex; align-items: center; gap: 5px;">
-                            <input type="text" id="pi-requisition-id" autocomplete="off" placeholder="রিকুইজিশন নম্বর" onkeyup="handleRequisitionSearchUI(this.value)" style="flex-grow: 1;">
+                            <input type="number" inputmode="numeric" pattern="[0-9]*" id="pi-requisition-id" autocomplete="off" placeholder="রিকুইজিশন নম্বর" onkeyup="handleRequisitionSearchUI(this.value)" style="flex-grow: 1;">
                             <button id="req-search-btn" onclick="searchRequisitionByNumber()" style="display: none; padding: 6px 10px; font-size: 14px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">🔍</button>
                             <div id="req-id-status" style="position: absolute; top: 100%; left: 0; width: 100%; font-size: 11px; font-weight: 600; margin-top: 2px;"></div>
                         </div>
@@ -1568,6 +1676,18 @@
           </div>
       </div>
   </div>  
+  <div id="requisitionDetailsModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 500px;">
+          <div class="modal-header">
+              <h2 id="req-details-title">রিকুইজিশন বিস্তারিত</h2>
+              <button class="close-btn" onclick="closeModal('requisitionDetailsModal')">&times;</button>
+          </div>
+          <div class="modal-body" id="req-details-body">
+              <!-- Details will be loaded here by JavaScript -->
+          </div>
+      </div>
+  </div>
+
     <script>
         // --- Global State & Constants ---
         const firebaseConfig = {
@@ -1803,7 +1923,9 @@
                     if (entry.requisitionId.toString() === SPECIAL_CLEAR_PIN) {
                         requisitionBadge = ` <span style="background-color: var(--warning-color); color: var(--dark-text); padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 5px;">বিশেষ ক্লিয়ারেন্স</span>`;
                     } else {
-                        requisitionBadge = ` <span style="background-color: #e9ecef; color: #495057; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px;">#${toBengaliNumber(entry.requisitionId)}</span>`;
+                        const requisitionId = entry.requisitionId;
+                        const clickAction = `showRequisitionDetails(${requisitionId})`;
+                        requisitionBadge = ` <span onclick="${clickAction}" style="background-color: #e9ecef; color: #495057; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px; cursor: pointer;">#${toBengaliNumber(requisitionId)}</span>`;
                     }
                 }
                 return `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} নিয়েছে ${entry.person}।${detailsText}${requisitionBadge}`;
@@ -2064,7 +2186,12 @@
                 users = this.getData('users');
                 ledger = this.getData('ledger');
                 archivedReports = this.getData('archivedReports');
+                
+                sectionOrder = JSON.parse(localStorage.getItem('sectionOrder') || '[]');
+                itemOrders = JSON.parse(localStorage.getItem('itemOrders') || '{}');
+                
                 expandedSections = JSON.parse(localStorage.getItem('expandedSections') || '{}');
+                
                 this.renderAll();
             },
             renderAll: function() {
@@ -4094,14 +4221,17 @@
                 
                     const badgesHTML = quantityArray.map(variant => {
                         const variantKeyUpper = (variant.key || '').toUpperCase();
-                        const colors = colorMapping[variantKeyUpper] || { bg: '#6c757d', text: 'white' };
+                        const colors = colorMapping[variantKeyUpper] || { bg: '#17a2b8', text: 'white' };
                         
-                        return `<span style="background-color: ${colors.bg}; color: ${colors.text}; padding: 1px 5px; border-radius: 3px; font-size: 10px; margin: 1px; display: inline-block; font-weight: 500;">${variant.key}: ${toBengaliNumber(variant.value)}</span>`;
+                        return `<div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 2px;">
+                                    <span style="background-color: ${colors.bg}; color: ${colors.text}; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 500;">${variant.key}</span>
+                                    <strong style="font-size: 10px; font-weight: 700; color: var(--dark-text);">${toBengaliNumber(variant.value)}</strong>
+                                </div>`;
                     }).join('');
                 
-                    return `<div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.4;">
-                                <div>${badgesHTML}</div>
-                                <strong style="font-size: 10px; color: var(--dark-text); margin-top: 2px;">${itemUnit}</strong>
+                    return `<div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.6;">
+                                ${badgesHTML}
+                                <strong style="font-size: 10px; color: var(--dark-text); margin-top: 2px; border-top: 1px solid #eee; padding-top: 2px; align-self: stretch; text-align: right;">${itemUnit}</strong>
                             </div>`;
                 };
 
@@ -5151,7 +5281,16 @@
             `;
             container.appendChild(variantRow);
         }
-
+        function normalizeVariantKey(variantName) {
+            const key = variantName.trim();
+            const lowerKey = key.toLowerCase();
+            if (['r', 'red', 'লাল'].includes(lowerKey)) return { key: 'R', name: key };
+            if (['y', 'yellow', 'হলুদ'].includes(lowerKey)) return { key: 'Y', name: key };
+            if (['b', 'blue', 'নীল'].includes(lowerKey)) return { key: 'B', name: key };
+            if (['bk', 'black', 'কালো'].includes(lowerKey)) return { key: 'BK', name: key };
+            if (['g', 'green', 'সবুজ'].includes(lowerKey)) return { key: 'G', name: key };
+            return { key: key, name: key };
+        }
         function saveAllItems() {
             const formCards = document.querySelectorAll('#multiItemFormsContainer .item-form-card');
             if (formCards.length === 0) {
@@ -5201,8 +5340,8 @@
                         const variantName = row.querySelector('.variant-key').value.trim();
                         const value = parseFloat(row.querySelector('.variant-quantity').value) || 0;
                         if (variantName) {
-                            const variantKey = normalizeVariantKey(variantName);
-                            const normalized = normalizeVariantKey(variantName); quantity.push({ key: normalized.key, name: normalized.name, value: value });
+                            const normalized = normalizeVariantKey(variantName);
+                            quantity.push({ key: normalized.key, name: normalized.name, value: value });
                             initialChange += value;
                             if (value > 0) {
                                 ledgerDetails[normalized.key] = value;
@@ -5531,6 +5670,7 @@
             }
         
             const itemsToProvide = [];
+            let totalTransactions = 0; 
             for (const card of formCards) {
                 const itemId = card.querySelector('.selected-item-id').value;
                 const itemName = card.querySelector('.custom-search-input').value;
@@ -5550,20 +5690,25 @@
                     variantInputs.forEach(input => {
                         const quantity = parseFloat(input.value);
                         if (quantity > 0) {
-                            const variant = input.dataset.variant;
-                            providedVariants[variant] = quantity;
-                            totalVariantQty += quantity;
+                            const variantKey = input.dataset.variantKey;
+                            if (variantKey) {
+                                providedVariants[variantKey] = quantity;
+                                totalVariantQty += quantity;
+                            }
                         }
                     });
             
                     if (totalVariantQty > 0) {
+                        let variantTransactionCount = Object.keys(providedVariants).length;
                         itemsToProvide.push({ itemId, quantity: totalVariantQty, itemName, isVariant: true, providedVariants });
+                        totalTransactions += variantTransactionCount;
                     }
                 } else {
                     const quantityStr = card.querySelector('.pi-quantity-single').value;
                     const quantity = parseFloat(quantityStr);
                     if (quantity > 0) {
                         itemsToProvide.push({ itemId, quantity, itemName, isVariant: false });
+                        totalTransactions++;
                     }
                 }
             }
@@ -5662,7 +5807,7 @@
                     }
                 });
         
-                showToast(`${toBengaliNumber(itemsToProvide.length)}টি আইটেম সফলভাবে প্রদান করা হয়েছে।`);
+                const totalItems = itemsToProvide.length; let successMessage; if (totalItems === 1 && totalTransactions > 1) {     successMessage = `১টি আইটেমের ${toBengaliNumber(totalTransactions)}টি ভ্যারিয়েন্ট সফলভাবে প্রদান করা হয়েছে।`; } else if (totalItems > 0) {     successMessage = `${toBengaliNumber(totalItems)}টি আইটেমের ${toBengaliNumber(totalTransactions)}টি লেনদেন সফলভাবে সম্পন্ন হয়েছে।`; }  if (successMessage) {     showToast(successMessage); }
                 closeModal('provideItemModal');
         
             } catch (error) {
@@ -6036,6 +6181,53 @@
 
           openModal('userReportModal');
       }
+        function showRequisitionDetails(requisitionId) {
+            const entries = ledger.filter(entry => entry.requisitionId === requisitionId);
+            if (entries.length === 0) {
+                return showToast('এই রিকুইজিশনের জন্য কোনো তথ্য পাওয়া যায়নি।', 'error');
+            }
+        
+            const firstEntry = entries[0];
+            const person = firstEntry.person;
+            const date = new Date(firstEntry.date).toLocaleDateString('bn-BD', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            });
+        
+            const modalTitle = document.getElementById('req-details-title');
+            modalTitle.textContent = `রিকুইজিশন #${toBengaliNumber(requisitionId)}`;
+        
+            const modalBody = document.getElementById('req-details-body');
+            
+            let itemsHTML = '';
+            entries.forEach(entry => {
+                const item = allItems.find(i => i.id === entry.itemId);
+                const unit = item ? (item.unit || 'পিস') : 'পিস';
+                let detailsText = '';
+                if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
+                    const detailsParts = Object.entries(entry.details)
+                        .map(([key, value]) => `${key}: ${toBengaliNumber(value)}`)
+                        .join(', ');
+                    detailsText = ` <small>(${detailsParts})</small>`;
+                }
+                itemsHTML += `<li style="padding: 6px 0; border-bottom: 1px solid #f1f1f1;">${entry.itemName}${detailsText} - <strong>${toBengaliNumber(Math.abs(entry.change))} ${unit}</strong></li>`;
+            });
+        
+            const resultCardHTML = `
+                <div class="card" style="margin: 0; box-shadow: none; background: #f8f9fa;">
+                    <div style="padding: 12px;">
+                        <p style="margin: 0 0 5px 0;"><strong>কর্মচারী:</strong> ${person}</p>
+                        <p style="margin: 0 0 15px 0;"><strong>তারিখ:</strong> ${date}</p>
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">আইটেমের তালিকা</h4>
+                        <ul style="list-style-type: none; margin: 0; padding: 0; font-size: 13px;">
+                            ${itemsHTML}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        
+            modalBody.innerHTML = resultCardHTML;
+            openModal('requisitionDetailsModal');
+        }
 
         async function clearAllUserTransactions(userId) {
             const user = users.find(u => u.id === userId);
@@ -6352,9 +6544,19 @@
                 if (isRegenerating) {
                     reportMonth = reportToRegenerate.month;
                     reportYear = reportToRegenerate.year;
-                    reportItems = reportToRegenerate.items;
+                    reportItems = reportToRegenerate.items.map(item => {
+                        const originalItem = allItems.find(i => i.id === item.id);
+                        return { ...item, stock: originalItem ? originalItem.quantity : '(N/A)' };
+                    });
+                
                     if (filterByQuantity) {
-                        reportItems = reportItems.filter(item => item.reqQnt && parseInt(item.reqQnt, 10) > 0);
+                        reportItems = reportItems.filter(item => {
+                            if (!item.reqQnt) return false;
+                            if (typeof item.reqQnt === 'object') {
+                                return Object.values(item.reqQnt).some(val => parseFloat(val) > 0);
+                            }
+                            return parseFloat(item.reqQnt) > 0;
+                        });
                     }
                 } else {
                     const now = new Date();
@@ -6525,7 +6727,7 @@
                             2: { cellWidth: 28, cellPadding: 0.5 },
                             3: { cellWidth: 14 }, 
                             4: { cellWidth: 28, cellPadding: 0.5 },
-                            5: { cellWidth: 47, halign: 'left' }
+                            5: { cellWidth: 'auto', halign: 'left' }
                         };
         
                         doc.autoTable({
@@ -6585,11 +6787,19 @@
                         closeModal('requisitionInputModal');
                         return showToast('রিপোর্ট আর্কাইভ করতে ইন্টারনেট সংযোগ প্রয়োজন।', 'error');
                     }
+                    
+                    const itemsForArchive = reportItems.map(item => ({
+                        id: item.id,
+                        name: item.name,
+                        unit: item.unit,
+                        reqQnt: item.reqQnt || null
+                    }));
+                
                     const newReport = {
                         id: `rep_${Date.now()}`,
                         month: reportMonth,
                         year: reportYear,
-                        items: reportItems
+                        items: itemsForArchive
                     };
                     
                     closeModal('requisitionInputModal');
