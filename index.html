@@ -4923,6 +4923,9 @@
             })
             .then(() => {
                 showToast('লেনদেনটি বিশেষ বিবেচনায় সফলভাবে ক্লিয়ার করা হয়েছে।');
+                renderUsersPage();
+                updateUrgentClearButtonVisibility();
+                                
             })
             .catch(error => {
                 console.error("Special urgent flag clear failed:", error);
@@ -6261,6 +6264,8 @@
         
                 const totalItems = itemsToProvide.length; let successMessage; if (totalItems === 1 && totalTransactions > 1) {     successMessage = `১টি আইটেমের ${toBengaliNumber(totalTransactions)}টি ভ্যারিয়েন্ট সফলভাবে প্রদান করা হয়েছে।`; } else if (totalItems > 0) {     successMessage = `${toBengaliNumber(totalItems)}টি আইটেমের ${toBengaliNumber(totalTransactions)}টি লেনদেন সফলভাবে সম্পন্ন হয়েছে।`; }  if (successMessage) {     showToast(successMessage); }
                 closeModal('provideItemModal');
+                renderUsersPage();
+                updateUrgentClearButtonVisibility();              
         
             } catch (error) {
                 console.error("Operation failed:", error);
