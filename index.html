@@ -1045,7 +1045,10 @@
                         </div>
                         <button type="submit" class="action-btn" style="width: 100%; background: var(--primary-gradient);">লগইন</button>
                         <div id="login-status-message" style="text-align: center; margin-top: 15px; font-weight: 500;"></div>
-                        </form>
+                        <p style="text-align: right; margin: 10px 0 0 0;">
+                            <a href="#" onclick="openPasswordResetModal(event)" style="font-size: 12px; color: #0056b3; font-weight: 600;">পাসওয়ার্ড ভুলে গেছেন?</a>
+                        </p>
+                    </form>
                 </div>
                 <div class="modal-footer" style="justify-content: center;">
                     <p>অ্যাকাউন্ট নেই? <a href="#" onclick="toggleAuthView(event)">এখানে রেজিস্টার করুন</a></p>
@@ -1828,7 +1831,27 @@
             </div>
         </div>
     </div>
-
+    <!-- ===== পাসওয়ার্ড রিসেট মডাল (নতুন) ===== -->
+    <div id="passwordResetModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>পাসওয়ার্ড রিসেট করুন</h2>
+                <button class="close-btn" onclick="closeModal('passwordResetModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 13px; margin-bottom: 15px;">আপনার অ্যাকাউন্টের ইমেইল ঠিকানাটি দিন। আমরা আপনাকে পাসওয়ার্ড রিসেট করার জন্য একটি লিঙ্ক পাঠাব।</p>
+                <form id="password-reset-form" onsubmit="sendPasswordReset(event)">
+                    <div class="form-group">
+                        <label for="reset-email">ইমেইল</label>
+                        <input type="email" id="reset-email" autocomplete="email" required>
+                    </div>
+                    <button type="submit" class="action-btn" style="width: 100%; background: var(--success-color);">রিসেট লিঙ্ক পাঠান</button>
+                    <div id="reset-status-message" style="text-align: center; margin-top: 15px; font-weight: 500;"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- ================================================== -->
     <script>
         // --- Global State & Constants ---
         const firebaseConfig = {
@@ -7517,6 +7540,47 @@
                 showAuthMessage('login', 'অফলাইন ডেটা নেই, অনুগ্রহ করে লগইন করুন।', true);
             }
         }
+
+        function openPasswordResetModal(event) {
+            event.preventDefault();
+            const loginEmail = document.getElementById('login-email').value;
+            document.getElementById('reset-email').value = loginEmail;
+            document.getElementById('reset-status-message').textContent = '';
+            openModal('passwordResetModal');
+        }
+
+        function sendPasswordReset(event) {
+            event.preventDefault();
+            const email = document.getElementById('reset-email').value;
+            const statusMessage = document.getElementById('reset-status-message');
+            const sendBtn = event.target.querySelector('button[type="submit"]');
+
+            sendBtn.disabled = true;
+            statusMessage.textContent = 'লিঙ্ক পাঠানো হচ্ছে...';
+            statusMessage.style.color = '#0056b3';
+
+            auth.sendPasswordResetEmail(email)
+                .then(() => {
+                    statusMessage.textContent = 'সফল! আপনার ইমেইল চেক করুন এবং পাসওয়ার্ড রিসেট করার জন্য লিঙ্কে ক্লিক করুন।';
+                    statusMessage.style.color = 'var(--success-color)';
+                    sendBtn.disabled = false;
+                    setTimeout(() => {
+                        closeModal('passwordResetModal');
+                    }, 4000);
+                })
+                .catch((error) => {
+                    let message = 'একটি ত্রুটি ঘটেছে। অনুগ্রহ করে আবার চেষ্টা করুন।';
+                    if (error.code === 'auth/user-not-found') {
+                        message = 'এই ইমেইল দিয়ে কোনো অ্যাকাউন্ট খুঁজে পাওয়া যায়নি।';
+                    } else if (error.code === 'auth/invalid-email') {
+                        message = 'অনুগ্রহ করে একটি সঠিক ইমেইল ঠিকানা দিন।';
+                    }
+                    statusMessage.textContent = message;
+                    statusMessage.style.color = 'var(--danger-color)';
+                    sendBtn.disabled = false;
+                });
+        }
+
         function requestPinAndExecute() {
             const pinModal = document.getElementById('pin-prompt-modal');
             const pinInput = document.getElementById('pin-input');
