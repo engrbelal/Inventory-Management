@@ -851,6 +851,68 @@
             height: 14px;
             transition: color 0.3s ease;
         }
+        .switch input { display: none; }
+        .slider.round:before {
+            position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #28a745; }
+        input:checked + .slider:before { transform: translateX(20px); } 
+        #prediction-body .prediction-item {
+            position: absolute;
+            width: 100%;
+            padding: 10px 15px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            opacity: 0;
+            transform: translateY(100%);
+            transition: transform 0.8s ease-in-out, opacity 0.8s ease-in-out;
+        }
+
+        #prediction-body .prediction-item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #prediction-body .prediction-item.exit {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        #prediction-body .prediction-item-wrapper {
+            position: absolute;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(100%);
+            transition: transform 0.8s ease-in-out, opacity 0.8s ease-in-out;
+        }
+
+        #prediction-body .prediction-item-wrapper.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #prediction-body .prediction-item-wrapper.exit {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        #prediction-body .prediction-item-wrapper {
+            position: absolute;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(100%);
+            transition: transform 0.8s ease-in-out, opacity 0.8s ease-in-out;
+        }
+
+        #prediction-body .prediction-item-wrapper.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #prediction-body .prediction-item-wrapper.exit {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        
         @media (min-width: 769px) {
             :root {
                 --base-font-size: 14px;
@@ -1042,6 +1104,17 @@
                         <input type="text" id="searchInput" autocomplete="off" onkeyup="renderInventoryPage()" placeholder="🔍 এখানে আইটেমের নাম লিখে সার্চ করুন..." style="font-size: 14px;">
                     </div>
                 </div>    
+                <!-- ===== পূর্বাভাস কার্ডের এই অংশটি আপডেট করুন ===== -->
+                <div id="prediction-card" class="card" style="display: none; padding-bottom: 0;">
+                    <div class="card-header" style="padding-bottom: 10px;">
+                        <h2 style="font-size: 16px;">স্টক পূর্বাভাস</h2>
+                    </div>
+                    <div id="prediction-body" class="card-body" style="height: 65px; overflow: hidden; position: relative; padding: 0;">
+                        <!-- পূর্বাভাস আইটেমগুলো এখানে স্লাইড করবে -->
+                    </div>
+                </div>
+                <!-- ========= আপডেট শেষ ========= -->
+
                 <div id="inventoryContainer"></div>
             </div>
         </div>
@@ -1166,6 +1239,32 @@
                         <button class="action-btn" style="background-color: #17a2b8; width: 100%;" onclick="openItemSplitModal()">
                             আইটেম স্প্লিট টুল খুলুন 🔧
                         </button>
+                    </div>
+                </div>           
+                <div class="card">
+                    <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
+                        <h2>স্টক পূর্বাভাস সেটিংস</h2>
+                        <span class="toggle-icon collapsed">▼</span>
+                    </div>
+                    <div class="card-body collapsible collapsed" style="padding-bottom: 15px;">
+                        <p>এই ফিচারটি চালু করলে ইনভেন্টরি পেজে আইটেমের ব্যবহারের হারের উপর ভিত্তি করে একটি পূর্বাভাস দেখতে পাবেন।</p>
+                        <div class="form-group" style="padding: 10px; box-shadow: none; background: #f8f9fa;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <label for="prediction-toggle" style="font-weight: 600; cursor: pointer;">ফিচারটি চালু করুন</label>
+                                <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                                    <input type="checkbox" id="prediction-toggle" onchange="handlePredictionToggle()">
+                                    <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px;"></span>
+                                </label>
+                            </div>
+                            <div id="prediction-options" style="display: none;">
+                                <label for="prediction-days" style="font-weight: 600;">পূর্বাভাসের ভিত্তি:</label>
+                                <select id="prediction-days" onchange="handlePredictionSettingsChange()" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid var(--border-color); font-size: 13px; margin-top: 5px;">
+                                    <option value="30">গত ৩০ দিনের ব্যবহার</option>
+                                    <option value="60">গত ৬০ দিনের ব্যবহার</option>
+                                    <option value="90">গত ৯০ দিনের ব্যবহার</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>                
                 <!-- ৮. ডেটা ম্যানেজমেন্ট -->
@@ -1606,8 +1705,12 @@
           <div class="modal-footer" style="display: block;">
               <div class="form-group" style="padding: 10px; box-shadow: none; background: #f8f9fa;">
                   <label for="uc-requisition-id" style="font-weight: 600;">সিলেক্ট করা আইটেমগুলোর জন্য রিকুইজিশন নম্বর দিন:</label>
-                  <input type="text" id="uc-requisition-id" autocomplete="off" placeholder="রিকুইজিশন নম্বর" onkeyup="checkUrgentRequisitionId()">
+                  <div style="display: flex; align-items: center; gap: 5px;">
+                      <input type="number" inputmode="numeric" pattern="[0-9]*" id="uc-requisition-id" autocomplete="off" placeholder="রিকুইজিশন নম্বর" onkeyup="checkUrgentRequisitionId()" style="flex-grow: 1;">
+                      <button id="uc-req-search-btn" onclick="searchUrgentRequisition()" style="display: none; padding: 6px 10px; font-size: 14px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">🔍</button>
+                  </div>
                   <div id="uc-req-id-status" style="font-size: 11px; font-weight: 600; margin-top: 4px; height: 14px;"></div>
+                  <div id="uc-requisition-search-result-container" style="margin-top: 10px;"></div>
               </div>
               <button id="clear-selected-urgent-btn" class="action-btn" style="width: 100%; background: var(--success-color);">
                   সিলেক্টেড আইটেম ক্লিয়ার করুন
@@ -1687,6 +1790,44 @@
           </div>
       </div>
   </div>
+    <div id="predictionDetailsModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="pd-modal-title">স্মার্ট পূর্বাভাস</h2>
+                <button class="close-btn" onclick="closeModal('predictionDetailsModal')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 0; background-color: #f4f6f9;">
+                <div id="pd-primary-info" class="card" style="margin: 10px; text-align: center; border-radius: 10px;">
+                    <h3 id="pd-item-name" style="font-size: 18px; margin: 10px 0 5px 0;"></h3>
+                    <p style="margin: 0;">বর্তমান স্টক: <strong id="pd-current-stock"></strong></p>
+                    <div id="pd-forecast-days" style="font-size: 24px; font-weight: 700; margin: 10px 0;"></div>
+                </div>
+                <div class="card" style="margin: 0 10px 10px 10px;">
+                    <div class="card-header" style="padding: 8px 12px; background-color: #f8f9fa;">
+                        <h3 style="margin:0; font-size: 14px;">ব্যবহারের বিশ্লেষণ</h3>
+                    </div>
+                    <ul id="pd-usage-stats" style="list-style: none; padding: 12px; margin: 0; font-size: 13px;">
+                    </ul>
+                </div>
+                <div class="card" style="margin: 0 10px 10px 10px;">
+                    <div class="card-header" style="padding: 8px 12px; background-color: #f8f9fa;">
+                        <h3 style="margin:0; font-size: 14px;">সাপ্তাহিক ব্যবহারের ধারা</h3>
+                    </div>
+                    <div id="pd-usage-graph" style="padding: 15px; min-height: 150px; display: flex; justify-content: space-around; align-items: flex-end; gap: 10px;">
+                    </div>
+                </div>
+                <div id="pd-smart-suggestion-card" class="card" style="margin: 0 10px 15px 10px; display: none;">
+                    <div class="card-header" style="padding: 8px 12px; background-color: var(--level-low-bg);">
+                        <h3 style="margin:0; font-size: 14px;">💡 স্মার্ট সুপারিশ</h3>
+                    </div>
+                    <div id="pd-smart-suggestion" style="padding: 12px; font-size: 13px; line-height: 1.6;">
+                    </div>
+                    <div id="pd-action-button-container" style="padding: 0 12px 12px 12px; display: none;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         // --- Global State & Constants ---
@@ -2576,6 +2717,11 @@
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
             document.getElementById(`${pageId}-page`).classList.add('active');
             event.currentTarget.classList.add('active');
+            // --- নতুন লাইন এখানে যুক্ত করুন ---
+            if (pageId === 'inventory') {
+                runPrediction();
+            }
+            // --- নতুন লাইন শেষ ---          
         }
 
         // --- Render Functions ---
@@ -3750,25 +3896,42 @@
             let filteredAndScoredItems = [];
             if (searchTerm) {
                 const searchWords = searchTerm.split(' ').filter(w => w);
-                const firstSearchWord = searchWords[0] || '';
         
-                filteredAndScoredItems = allItems
-                    .map(item => {
-                        const lowerItemName = item.name.toLowerCase();
-                        let score = 0;
-                        const allSearchWordsFound = searchWords.every(word => lowerItemName.includes(word));
+                filteredAndScoredItems = allItems.map(item => {
+                    const lowerItemName = item.name.toLowerCase();
+                    let score = 0;
+                    let matchFound = false;
         
-                        if (allSearchWordsFound) {
-                            const itemWords = lowerItemName.split(' ');
-                            const firstItemWord = itemWords[0] || '';
-                            if (firstItemWord === firstSearchWord) score = 4;
-                            else if (firstItemWord.startsWith(firstSearchWord)) score = 3;
-                            else if (itemWords.some(word => word.startsWith(firstSearchWord))) score = 2;
-                            else score = 1;
+                    const allWordsMatch = searchWords.every(word => {
+                        if (Array.isArray(item.quantity)) {
+                            const variantMatch = item.quantity.some(v => 
+                                (v.name && v.name.toLowerCase().includes(word)) || 
+                                (v.key && v.key.toLowerCase().includes(word))
+                            );
+                            return lowerItemName.includes(word) || variantMatch;
                         }
-                        return { ...item, score };
-                    })
-                    .filter(item => item.score > 0);
+                        return lowerItemName.includes(word);
+                    });
+        
+                    if (allWordsMatch) {
+                        matchFound = true;
+                        const firstWord = searchWords[0];
+                        if (lowerItemName.startsWith(firstWord)) {
+                            score = 100;
+                        } else if (lowerItemName.split(' ').some(w => w.startsWith(firstWord))) {
+                            score = 50;
+                        } else {
+                            score = 20;
+                        }
+                        const indexOfMatch = lowerItemName.indexOf(firstWord);
+                        if (indexOfMatch > -1) {
+                           score += (20 - indexOfMatch);
+                        }
+                    }
+        
+                    return { ...item, score, matchFound };
+                }).filter(item => item.matchFound);
+        
             } else {
                 filteredAndScoredItems = allItems.map(item => ({ ...item, score: 0 }));
             }
@@ -4055,13 +4218,17 @@
         function checkUrgentRequisitionId() {
             const reqInput = document.getElementById('uc-requisition-id');
             const statusDiv = document.getElementById('uc-req-id-status');
+            const searchBtn = document.getElementById('uc-req-search-btn');
+            const resultContainer = document.getElementById('uc-requisition-search-result-container');
             const reqValue = reqInput.value.trim();
-        
+
             reqInput.classList.remove('valid', 'invalid');
             statusDiv.textContent = '';
-        
+            searchBtn.style.display = 'none';
+            resultContainer.innerHTML = '';
+
             if (!reqValue) return;
-        
+
             clearTimeout(ucReqCheckDebounceTimer);
             ucReqCheckDebounceTimer = setTimeout(async () => {
                 const requisitionIdAsNumber = parseInt(reqValue, 10);
@@ -4071,28 +4238,31 @@
                     reqInput.classList.add('invalid');
                     return;
                 }
-        
+
                 statusDiv.textContent = 'চেক করা হচ্ছে...';
                 statusDiv.style.color = '#6c757d';
-        
+
                 try {
                     const dbPath = getDbPath();
                     if (!dbPath) throw new Error("লগইন করা নেই।");
-        
-                    const localMatch = ledger.some(entry => entry.requisitionId === requisitionIdAsNumber);
-                    if (localMatch) {
-                        statusDiv.textContent = 'এই নম্বরটি ইতোমধ্যে ব্যবহৃত হয়েছে।';
-                        statusDiv.style.color = 'var(--danger-color)';
+
+                    const isExisting = ledger.some(entry => entry.requisitionId === requisitionIdAsNumber);
+
+                    if (isExisting) {
+                        statusDiv.textContent = 'এই নম্বরটি ইতোমধ্যে ব্যবহৃত হয়েছে। তথ্য দেখতে সার্চ করুন।';
+                        statusDiv.style.color = 'var(--warning-color)';
                         reqInput.classList.add('invalid');
+                        searchBtn.style.display = 'block';
                         return;
                     }
-        
+
                     if (navigator.onLine) {
                         const ledgerQuery = await dbPath.collection('ledger').where('requisitionId', '==', requisitionIdAsNumber).limit(1).get();
                         if (!ledgerQuery.empty) {
-                            statusDiv.textContent = 'এই নম্বরটি ইতোমধ্যে ব্যবহৃত হয়েছে।';
-                            statusDiv.style.color = 'var(--danger-color)';
+                            statusDiv.textContent = 'এই নম্বরটি ইতোমধ্যে ব্যবহৃত হয়েছে। তথ্য দেখতে সার্চ করুন।';
+                            statusDiv.style.color = 'var(--warning-color)';
                             reqInput.classList.add('invalid');
+                            searchBtn.style.display = 'block';
                         } else {
                             statusDiv.textContent = 'নম্বরটি উপলব্ধ আছে।';
                             statusDiv.style.color = 'var(--success-color)';
@@ -4109,7 +4279,58 @@
                 }
             }, 500);
         }
-        
+        function searchUrgentRequisition() {
+            const reqInput = document.getElementById('uc-requisition-id');
+            const resultContainer = document.getElementById('uc-requisition-search-result-container');
+            const reqId = parseInt(reqInput.value.trim(), 10);
+
+            resultContainer.innerHTML = '';
+
+            if (isNaN(reqId)) {
+                showToast('অনুগ্রহ করে একটি সঠিক রিকুইজিশন নম্বর দিন।', 'error');
+                return;
+            }
+
+            const entries = ledger.filter(entry => entry.requisitionId === reqId);
+
+            if (entries.length === 0) {
+                resultContainer.innerHTML = `<div style="background-color: var(--level-very-low-bg); padding: 10px; border-radius: 6px; text-align: center; font-weight: 500;">রিকুইজিশন নম্বর '${toBengaliNumber(reqId)}' এর জন্য কোনো তথ্য পাওয়া যায়নি।</div>`;
+                return;
+            }
+
+            const firstEntry = entries[0];
+            const person = firstEntry.person;
+            const date = new Date(firstEntry.date).toLocaleDateString('bn-BD', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            });
+
+            let itemsHTML = '';
+            entries.forEach(entry => {
+                const item = allItems.find(i => i.id === entry.itemId);
+                const unit = item ? (item.unit || 'পিস') : 'পিস';
+                let detailsText = '';
+                if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
+                    const detailsParts = Object.entries(entry.details)
+                        .map(([key, value]) => `${key}: ${toBengaliNumber(value)}`)
+                        .join(', ');
+                    detailsText = ` <small>(${detailsParts})</small>`;
+                }
+                itemsHTML += `<li style="padding: 5px 0; border-bottom: 1px solid #eee;">${entry.itemName}${detailsText} - <strong>${toBengaliNumber(Math.abs(entry.change))} ${unit}</strong></li>`;
+            });
+
+            const resultCardHTML = `
+                <div style="background: #eef; border-left: 5px solid #0056b3; padding: 10px; border-radius: 6px;">
+                    <p style="margin: 0 0 5px 0;"><strong>রিকুইজিশন নং:</strong> ${toBengaliNumber(reqId)}</p>
+                    <p style="margin: 0 0 10px 0;"><strong>কর্মচারী:</strong> ${person} | <strong>তারিখ:</strong> ${date}</p>
+                    <ul style="list-style-type: disc; margin: 0; padding-left: 20px; font-size: 13px;">
+                        ${itemsHTML}
+                    </ul>
+                </div>
+            `;
+
+            resultContainer.innerHTML = resultCardHTML;
+        }
+
         async function processUrgentClear() {
             const selectedCheckboxes = document.querySelectorAll('.urgent-clear-checkbox:checked');
             const requisitionIdValue = document.getElementById('uc-requisition-id').value.trim();
@@ -4223,8 +4444,8 @@
                         const variantKeyUpper = (variant.key || '').toUpperCase();
                         const colors = colorMapping[variantKeyUpper] || { bg: '#17a2b8', text: 'white' };
                         
-                        return `<div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 2px;">
-                                    <span style="background-color: ${colors.bg}; color: ${colors.text}; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 500;">${variant.key}</span>
+                        return `<div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 2px; width: 100%;">
+                                    <span style="background-color: ${colors.bg}; color: ${colors.text}; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; white-space: nowrap;">${variant.key}</span>
                                     <strong style="font-size: 10px; font-weight: 700; color: var(--dark-text);">${toBengaliNumber(variant.value)}</strong>
                                 </div>`;
                     }).join('');
@@ -4972,7 +5193,215 @@
             batch.commit().then(() => showToast('স্টক আপডেট করা হয়েছে।'))
                 .catch(error => showToast('স্টক আপডেট করতে সমস্যা হয়েছে।', 'error'));
         }
+        function handlePredictionToggle() {
+            const isEnabled = document.getElementById('prediction-toggle').checked;
+            const optionsDiv = document.getElementById('prediction-options');
+            
+            localStorage.setItem('predictionFeatureEnabled', isEnabled);
+            
+            if (isEnabled) {
+                optionsDiv.style.display = 'block';
+                runPrediction();
+            } else {
+                optionsDiv.style.display = 'none';
+                const card = document.getElementById('prediction-card');
+                if (card) card.style.display = 'none';
+            }
+        }
 
+        function handlePredictionSettingsChange() {
+            const days = document.getElementById('prediction-days').value;
+            localStorage.setItem('predictionAnalysisDays', days);
+            runPrediction();
+        }
+
+        function runPrediction() {
+            const isEnabled = localStorage.getItem('predictionFeatureEnabled') === 'true';
+            const card = document.getElementById('prediction-card');
+            if (!isEnabled || !card) {
+                if(card) card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+            const body = document.getElementById('prediction-body');
+            const days = parseInt(localStorage.getItem('predictionAnalysisDays') || '30', 10);
+            body.innerHTML = `<p style="text-align:center; margin: 10px 0;">পূর্বাভাস গণনা করা হচ্ছে...</p>`;
+
+            setTimeout(() => {
+                const predictions = [];
+                const now = new Date();
+                const cutoffDate = new Date(new Date().setDate(now.getDate() - days));
+
+                allItems.forEach(item => {
+                    if (Array.isArray(item.quantity) || item.quantity <= 0) return;
+
+                    const relevantLedger = ledger.filter(l =>
+                        l.itemId === item.id && l.change < 0 && new Date(l.date) >= cutoffDate
+                    );
+
+                    if (relevantLedger.length > 0) {
+                        const totalConsumed = relevantLedger.reduce((sum, l) => sum + Math.abs(l.change), 0);
+                        const dailyAvg = totalConsumed / days;
+
+                        if (dailyAvg > 0) {
+                            const daysRemaining = item.quantity / dailyAvg;
+                            if (daysRemaining <= 30) {
+                                predictions.push({
+                                    id: item.id, name: item.name, days: Math.floor(daysRemaining)
+                                });
+                            }
+                        }
+                    }
+                });
+
+                predictions.sort((a, b) => a.days - b.days);
+                renderPredictionResults(predictions);
+            }, 50);
+        }
+
+        let predictionInterval;
+
+        function renderPredictionResults(predictions) {
+            const body = document.getElementById('prediction-body');
+            const days = localStorage.getItem('predictionAnalysisDays') || '30';
+            
+            clearInterval(predictionInterval);
+            body.innerHTML = '';
+
+            if (predictions.length === 0) {
+                body.innerHTML = `<p style="text-align:center; margin: 0; padding: 22px 15px; font-size: 12px;">গত ${toBengaliNumber(days)} দিনে ব্যবহৃত কোনো আইটেমের স্টক ৩০ দিনের কম নেই।</p>`;
+                return;
+            }
+
+            let currentIndex = 0;
+
+            const showNextPrediction = () => {
+                const p = predictions[currentIndex];
+                
+                let colorClass = (p.days <= 7) ? 'level-critical' : (p.days <= 15) ? 'level-very-low' : 'level-low';
+                
+                const newItemHTML = `
+                    <div class="prediction-item-wrapper" style="padding: 5px; box-sizing: border-box; position: absolute; width: 100%; opacity: 0; transform: translateY(100%); transition: transform 0.8s ease-in-out, opacity 0.8s ease-in-out;">
+                        <div class="${colorClass}" style="cursor: pointer; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 8px 12px; border-radius: 8px;" onclick="openPredictionDetailsModal('${p.id}')">
+                            <strong style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; display: block;">${p.name}</strong>
+                            <div style="font-weight: bold; margin-top: 3px; font-size: 12px;">🕒 প্রায় ${toBengaliNumber(p.days)} দিন চলবে</div>
+                        </div>
+                    </div>
+                `;
+                
+                const oldItem = body.querySelector('.prediction-item-wrapper');
+                if (oldItem) {
+                    oldItem.style.transform = 'translateY(-100%)';
+                    oldItem.style.opacity = '0';
+                    setTimeout(() => oldItem.remove(), 800);
+                }
+
+                body.insertAdjacentHTML('beforeend', newItemHTML);
+                const newItem = body.lastElementChild;
+
+                setTimeout(() => {
+                    if (newItem) {
+                        newItem.style.transform = 'translateY(0)';
+                        newItem.style.opacity = '1';
+                    }
+                }, 50);
+
+                currentIndex = (currentIndex + 1) % predictions.length;
+            };
+
+            if (predictions.length > 1) {
+                showNextPrediction();
+                predictionInterval = setInterval(showNextPrediction, 2000);
+            } else {
+                showNextPrediction();
+            }
+        }
+
+        function openPredictionDetailsModal(itemId) {
+            const item = allItems.find(i => i.id === itemId);
+            if (!item) return;
+
+            const days = parseInt(localStorage.getItem('predictionAnalysisDays') || '30', 10);
+            const now = new Date();
+            const cutoffDate = new Date(new Date().setDate(now.getDate() - days));
+
+            const relevantLedger = ledger.filter(l => l.itemId === item.id && l.change < 0 && new Date(l.date) >= cutoffDate);
+            const totalConsumed = relevantLedger.reduce((sum, l) => sum + Math.abs(l.change), 0);
+            const dailyAvg = totalConsumed / days;
+            const daysRemaining = (dailyAvg > 0) ? Math.floor(item.quantity / dailyAvg) : Infinity;
+
+            document.getElementById('pd-item-name').textContent = item.name;
+            document.getElementById('pd-current-stock').textContent = `${toBengaliNumber(item.quantity)} ${item.unit || 'পিস'}`;
+            
+            const forecastDaysEl = document.getElementById('pd-forecast-days');
+            if (daysRemaining === Infinity) {
+                forecastDaysEl.textContent = "ব্যবহারের তথ্য নেই";
+                forecastDaysEl.style.color = '#6c757d';
+            } else {
+                forecastDaysEl.textContent = `প্রায় ${toBengaliNumber(daysRemaining)} দিন চলবে`;
+                forecastDaysEl.style.color = (daysRemaining <= 7) ? 'var(--danger-color)' : (daysRemaining <= 15) ? 'var(--warning-color)' : 'var(--success-color)';
+            }
+
+            const lastProvidedEntry = ledger.filter(l => l.itemId === item.id && l.change < 0).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+            const lastProvidedDate = lastProvidedEntry ? new Date(lastProvidedEntry.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }) : 'কখনো না';
+
+            const statsContainer = document.getElementById('pd-usage-stats');
+            statsContainer.innerHTML = `
+                <li style="padding: 5px 0;"><strong>বিশ্লেষণের সময়কাল:</strong> গত ${toBengaliNumber(days)} দিন</li>
+                <li style="padding: 5px 0;"><strong>দৈনিক গড় ব্যবহার:</strong> ${toBengaliNumber(dailyAvg.toFixed(2))} ${item.unit || 'পিস'}</li>
+                <li style="padding: 5px 0;"><strong>মোট ব্যবহার:</strong> ${toBengaliNumber(totalConsumed)} ${item.unit || 'পিস'}</li>
+                <li style="padding: 5px 0;"><strong>সর্বশেষ প্রদান:</strong> ${lastProvidedDate}</li>
+            `;
+
+            const graphContainer = document.getElementById('pd-usage-graph');
+            graphContainer.innerHTML = '';
+            const weeklyUsage = [0, 0, 0, 0];
+            relevantLedger.forEach(l => {
+                const weeksAgo = Math.floor((now - new Date(l.date)) / (1000 * 60 * 60 * 24 * 7));
+                if (weeksAgo < 4) {
+                    weeklyUsage[3 - weeksAgo] += Math.abs(l.change);
+                }
+            });
+
+            const maxUsage = Math.max(...weeklyUsage, 1);
+            weeklyUsage.forEach((usage, index) => {
+                const barHeight = (usage / maxUsage) * 100;
+                graphContainer.innerHTML += `
+                    <div style="display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end;">
+                        <span style="font-size: 11px; font-weight: 600;">${toBengaliNumber(usage)}</span>
+                        <div style="width: 25px; height: ${barHeight}%; background-color: #007bff; border-radius: 5px 5px 0 0;"></div>
+                        <span style="font-size: 11px; margin-top: 4px;">${toBengaliNumber(4 - index)} সপ্তাহ আগে</span>
+                    </div>
+                `;
+            });
+
+            const suggestionCard = document.getElementById('pd-smart-suggestion-card');
+            const suggestionText = document.getElementById('pd-smart-suggestion');
+            const actionContainer = document.getElementById('pd-action-button-container');
+            suggestionCard.style.display = 'none';
+            actionContainer.style.display = 'none';
+
+            if (daysRemaining <= 7) {
+                suggestionText.innerHTML = `এই আইটেমটির স্টক প্রায় শেষ। দ্রুত কেনা প্রয়োজন।`;
+                suggestionCard.style.display = 'block';
+            } else if (weeklyUsage[3] > weeklyUsage[2] * 1.5 && weeklyUsage[2] > 0) {
+                const increasePercent = Math.round(((weeklyUsage[3] - weeklyUsage[2]) / weeklyUsage[2]) * 100);
+                suggestionText.innerHTML = `শেষ সপ্তাহে এই আইটেমটির ব্যবহার প্রায় ${toBengaliNumber(increasePercent)}% বেড়েছে। চাহিদা পুনরায় যাচাই করুন।`;
+                suggestionCard.style.display = 'block';
+            } else if (totalConsumed === 0 && days >= 90) {
+                suggestionText.innerHTML = `এই আইটেমটি গত ${toBengaliNumber(days)} দিনে ব্যবহৃত হয়নি। এটি একটি 'Slow-moving' আইটেম হিসেবে বিবেচিত হতে পারে।`;
+                suggestionCard.style.display = 'block';
+            }
+
+            openModal('predictionDetailsModal');
+        }
+
+        function highlightAndScrollToItem(itemId) {
+            showPage('inventory');
+            itemToHighlight = itemId;
+            renderInventoryPage();
+        }
         async function editSectionName(sectionId, oldName) {
             const pinVerified = await requestPinAndExecute();
             if (!pinVerified) return;
@@ -6996,6 +7425,7 @@
                 syncStatusEl.textContent = 'সিঙ্ক হচ্ছে...';
                 syncStatusEl.className = 'sync-status-indicator syncing';
                 listenForLiveUpdates();
+                runPrediction();
             }
         }
         
@@ -7455,14 +7885,45 @@
                 return itemDiv;
             };
         
-            if (searchTerm.length === 0) {
+            let itemsToDisplay;
+
+            if (searchTerm) {
+                const searchWords = searchTerm.split(' ').filter(w => w);
+                itemsToDisplay = allItems.map(item => {
+                    const lowerItemName = item.name.toLowerCase();
+                    let score = 0;
+                    
+                    const allWordsMatch = searchWords.every(word => {
+                        if (Array.isArray(item.quantity)) {
+                            const variantMatch = item.quantity.some(v => 
+                                (v.name && v.name.toLowerCase().includes(word)) || 
+                                (v.key && v.key.toLowerCase().includes(word))
+                            );
+                            return lowerItemName.includes(word) || variantMatch;
+                        }
+                        return lowerItemName.includes(word);
+                    });
+
+                    if (allWordsMatch) {
+                        const firstWord = searchWords[0];
+                        if (lowerItemName.startsWith(firstWord)) {
+                            score = 100;
+                        } else if (lowerItemName.split(' ').some(w => w.startsWith(firstWord))) {
+                            score = 50;
+                        } else {
+                            score = 20;
+                        }
+                    }
+                    return { ...item, score };
+                }).filter(item => item.score > 0).sort((a, b) => b.score - a.score);
+            } else {
                 const sortedSections = [...sectionOrder];
-                
+                itemsToDisplay = [];
                 sortedSections.forEach(sectionName => {
                     const itemsInSection = allItems.filter(item => item.section === sectionName);
-                    
                     const customItemOrder = itemOrders[sectionName] || [];
                     const defaultSortFunc = masterSortFunction(sectionName);
+                    
                     if (customItemOrder.length > 0) {
                         itemsInSection.sort((a, b) => {
                             const indexA = customItemOrder.indexOf(a.id);
@@ -7475,19 +7936,12 @@
                     } else {
                         itemsInSection.sort(defaultSortFunc);
                     }
-        
-                    itemsInSection.forEach(item => {
-                        resultsContainer.appendChild(createItemDiv(item));
-                    });
+                    itemsToDisplay.push(...itemsInSection);
                 });
-                resultsContainer.classList.add('show');
-                return;
             }
-        
-            const filtered = allItems.filter(item => item.name.toLowerCase().includes(searchTerm));
-            
-            if (filtered.length > 0) {
-                filtered.forEach(item => {
+
+            if (itemsToDisplay.length > 0) {
+                itemsToDisplay.forEach(item => {
                     resultsContainer.appendChild(createItemDiv(item));
                 });
                 resultsContainer.classList.add('show');
@@ -7632,6 +8086,13 @@
                     slowScrollAnimationId = requestAnimationFrame(step);
                 });
             }
+            // --- নতুন লাইন এখানে যুক্ত করুন ---
+            const predictionEnabled = localStorage.getItem('predictionFeatureEnabled') === 'true';
+            const predictionDays = localStorage.getItem('predictionAnalysisDays') || '30';
+            document.getElementById('prediction-toggle').checked = predictionEnabled;
+            document.getElementById('prediction-days').value = predictionDays;
+            document.getElementById('prediction-options').style.display = predictionEnabled ? 'block' : 'none';
+            // --- নতুন লাইন শেষ ---
         
             auth.onAuthStateChanged(async (user) => {
                 currentUser = user;
