@@ -1879,6 +1879,7 @@
         let unsubscribeListeners = [];
         let sectionOrder = []; 
         let sortableInstance = null;
+        let itemSortableInstance = null;
         let itemOrders = {};
         const ADMIN_UIDS = [
             "MnhpRrkD24WNCXQOF0EVWtyqEac2",
@@ -3624,8 +3625,7 @@
             const selectedSection = sectionSelect.value;
             const sortableList = document.getElementById('sortable-items');
             const buttonsContainer = document.getElementById('item-sort-buttons-container');
-            let itemSortableInstance = null;
-        
+
             sortableList.innerHTML = '';
         
             if (!selectedSection) {
