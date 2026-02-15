@@ -1302,8 +1302,9 @@
                 </div>
                 <div class="modal-footer" style="display: block; text-align: center;">
                     <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <input type="checkbox" id="filter-by-quantity-toggle" style="width: auto; height: 16px; cursor: pointer;">
+                        <input type="checkbox" id="filter-by-quantity-toggle" onchange="updateRequisitionCounter()" style="width: auto; height: 16px; cursor: pointer;">
                         <label for="filter-by-quantity-toggle" style="font-weight: 600; font-size: 13px; cursor: pointer;">শুধুমাত্র চাহিদার আইটেম অন্তর্ভুক্ত করুন</label>
+                        <span id="requisition-item-counter" style="display: none; background-color: #007bff; color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px;"></span>
                     </div>
                 
                     <div style="display: flex; justify-content: center; gap: 8px; width: 100%;">
@@ -1793,65 +1794,66 @@
           </div>
       </div>
   </div>
-    <div id="predictionDetailsModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2 id="pd-modal-title">স্মার্ট পূর্বাভাস</h2>
-                <button class="close-btn" onclick="closeModal('predictionDetailsModal')">&times;</button>
-            </div>
-            <div class="modal-body" style="padding: 0; background-color: #f4f6f9;">
-                <div id="pd-primary-info" class="card" style="margin: 10px; text-align: center; border-radius: 10px;">
-                    <h3 id="pd-item-name" style="font-size: 18px; margin: 10px 0 5px 0;"></h3>
-                    <p style="margin: 0;">বর্তমান স্টক: <strong id="pd-current-stock"></strong></p>
-                    <div id="pd-forecast-days" style="font-size: 24px; font-weight: 700; margin: 10px 0;"></div>
-                </div>
-                <div class="card" style="margin: 0 10px 10px 10px;">
-                    <div class="card-header" style="padding: 8px 12px; background-color: #f8f9fa;">
-                        <h3 style="margin:0; font-size: 14px;">ব্যবহারের বিশ্লেষণ</h3>
-                    </div>
-                    <ul id="pd-usage-stats" style="list-style: none; padding: 12px; margin: 0; font-size: 13px;">
-                    </ul>
-                </div>
-                <div class="card" style="margin: 0 10px 10px 10px;">
-                    <div class="card-header" style="padding: 8px 12px; background-color: #f8f9fa;">
-                        <h3 style="margin:0; font-size: 14px;">সাপ্তাহিক ব্যবহারের ধারা</h3>
-                    </div>
-                    <div id="pd-usage-graph" style="padding: 15px; min-height: 150px; display: flex; justify-content: space-around; align-items: flex-end; gap: 10px;">
-                    </div>
-                </div>
-                <div id="pd-smart-suggestion-card" class="card" style="margin: 0 10px 15px 10px; display: none;">
-                    <div class="card-header" style="padding: 8px 12px; background-color: var(--level-low-bg);">
-                        <h3 style="margin:0; font-size: 14px;">💡 স্মার্ট সুপারিশ</h3>
-                    </div>
-                    <div id="pd-smart-suggestion" style="padding: 12px; font-size: 13px; line-height: 1.6;">
-                    </div>
-                    <div id="pd-action-button-container" style="padding: 0 12px 12px 12px; display: none;">
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- ===== পাসওয়ার্ড রিসেট মডাল (নতুন) ===== -->
-    <div id="passwordResetModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
-                <h2>পাসওয়ার্ড রিসেট করুন</h2>
-                <button class="close-btn" onclick="closeModal('passwordResetModal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p style="font-size: 13px; margin-bottom: 15px;">আপনার অ্যাকাউন্টের ইমেইল ঠিকানাটি দিন। আমরা আপনাকে পাসওয়ার্ড রিসেট করার জন্য একটি লিঙ্ক পাঠাব।</p>
-                <form id="password-reset-form" onsubmit="sendPasswordReset(event)">
-                    <div class="form-group">
-                        <label for="reset-email">ইমেইল</label>
-                        <input type="email" id="reset-email" autocomplete="email" required>
-                    </div>
-                    <button type="submit" class="action-btn" style="width: 100%; background: var(--success-color);">রিসেট লিঙ্ক পাঠান</button>
-                    <div id="reset-status-message" style="text-align: center; margin-top: 15px; font-weight: 500;"></div>
-                </form>
-            </div>
-        </div>
-    </div>
-    <!-- ================================================== -->
+  <div id="predictionDetailsModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 500px;">
+          <div class="modal-header" style="padding: 10px 15px;">
+              <h2 id="pd-modal-title" style="font-size: 15px;">স্মার্ট পূর্বাভাস</h2>
+              <button class="close-btn" onclick="closeModal('predictionDetailsModal')">&times;</button>
+          </div>
+          <div class="modal-body" style="padding: 5px 0; background-color: #f4f6f9;">
+              <div id="pd-primary-info" class="card" style="margin: 0 8px 5px 8px; text-align: center; border-radius: 8px; padding: 8px;">
+                  <h3 id="pd-item-name" style="font-size: 15px; margin: 0 0 4px 0;"></h3>
+                  <p style="margin: 0; font-size: 11px;">বর্তমান স্টক: <strong id="pd-current-stock"></strong></p>
+                  <div id="pd-forecast-days" style="font-size: 18px; font-weight: 700; margin: 4px 0 0 0;"></div>
+              </div>
+              <div class="card" style="margin: 0 8px 8px 8px; border-radius: 8px;">
+                  <div class="card-header" style="padding: 5px 10px; background-color: #f8f9fa;">
+                      <h3 style="margin:0; font-size: 12px;">ব্যবহারের বিশ্লেষণ</h3>
+                  </div>
+                  <ul id="pd-usage-stats" style="list-style: none; padding: 4px 10px 6px 10px; margin: 0; font-size: 11px;">
+                  </ul>
+              </div>
+              <div class="card" style="margin: 0 8px 8px 8px; border-radius: 8px;">
+                  <div class="card-header" style="padding: 6px 10px; background-color: #f8f9fa;">
+                      <h3 style="margin:0; font-size: 13px;">সাপ্তাহিক ব্যবহারের ধারা</h3>
+                  </div>
+                  <div id="pd-usage-graph" style="padding: 12px 10px 10px 10px; min-height: 120px; display: flex; justify-content: space-around; align-items: flex-end; gap: 10px;">
+                  </div>
+              </div>
+              <div id="pd-smart-suggestion-card" class="card" style="margin: 0 8px 8px 8px; display: none; border-radius: 8px;">
+                  <div class="card-header" style="padding: 6px 10px; background-color: var(--level-low-bg);">
+                      <h3 style="margin:0; font-size: 13px;">💡 স্মার্ট সুপারিশ</h3>
+                  </div>
+                  <div id="pd-smart-suggestion" style="padding: 10px; font-size: 12px; line-height: 1.5;">
+                  </div>
+                  <div id="pd-action-button-container" style="padding: 0 10px 10px 10px; display: none;">
+                  </div>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <!-- ===== পাসওয়ার্ড রিসেট মডাল (নতুন) ===== -->
+  <div id="passwordResetModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 400px;">
+          <div class="modal-header">
+              <h2>পাসওয়ার্ড রিসেট করুন</h2>
+              <button class="close-btn" onclick="closeModal('passwordResetModal')">&times;</button>
+          </div>
+          <div class="modal-body">
+              <p style="font-size: 13px; margin-bottom: 15px;">আপনার অ্যাকাউন্টের ইমেইল ঠিকানাটি দিন। আমরা আপনাকে পাসওয়ার্ড রিসেট করার জন্য একটি লিঙ্ক পাঠাব।</p>
+              <form id="password-reset-form" onsubmit="sendPasswordReset(event)">
+                  <div class="form-group">
+                      <label for="reset-email">ইমেইল</label>
+                      <input type="email" id="reset-email" autocomplete="email" required>
+                  </div>
+                  <button type="submit" class="action-btn" style="width: 100%; background: var(--success-color);">রিসেট লিঙ্ক পাঠান</button>
+                  <div id="reset-status-message" style="text-align: center; margin-top: 15px; font-weight: 500;"></div>
+              </form>
+          </div>
+      </div>
+  </div>
+  <!-- ================================================== -->
     <script>
         // --- Global State & Constants ---
         const firebaseConfig = {
@@ -6380,6 +6382,40 @@
             }
         }
 
+        function updateRequisitionCounter() {
+            const counterElement = document.getElementById('requisition-item-counter');
+            const filterCheckbox = document.getElementById('filter-by-quantity-toggle');
+        
+            if (!counterElement || !filterCheckbox) return;
+        
+            let demandedItemsCount = 0;
+            const tempRequisition = JSON.parse(localStorage.getItem('tempRequisition') || '{}');
+        
+            for (const itemId in tempRequisition) {
+                const quantity = tempRequisition[itemId];
+                if (quantity !== null && quantity !== '' && quantity !== '0') {
+                    // ভ্যারিয়েন্ট অবজেক্ট চেক করা
+                    if (typeof quantity === 'object' && Object.keys(quantity).length > 0) {
+                        const hasValue = Object.values(quantity).some(val => parseFloat(val) > 0);
+                        if (hasValue) {
+                            demandedItemsCount++;
+                        }
+                    } 
+                    // সাধারণ সংখ্যা চেক করা
+                    else if (typeof quantity !== 'object' && parseFloat(quantity) > 0) {
+                        demandedItemsCount++;
+                    }
+                }
+            }
+        
+            if (filterCheckbox.checked) {
+                counterElement.textContent = `${toBengaliNumber(demandedItemsCount)} টি আইটেম`;
+                counterElement.style.display = 'inline-block';
+            } else {
+                counterElement.style.display = 'none';
+            }
+        }
+
         async function openDownloadModal() {
             tempRequisitionData = JSON.parse(localStorage.getItem('tempRequisition') || '{}');          
             const dbPath = getDbPath();
@@ -6506,6 +6542,7 @@
                 newScrollableDiv.scrollTop = currentScrollTop;
             }            
             openModal('requisitionInputModal');
+            updateRequisitionCounter(); 
         }
 
         function filterRequisitionItems() {
@@ -6784,6 +6821,7 @@
                     
                     reqRef.set(dataToSync, { merge: true });
                 }
+                updateRequisitionCounter();
             }, 500);
         }
 
@@ -6959,7 +6997,7 @@
                 } else {
                     saveTempRequisition(itemId, null);
                 }
-                
+                updateRequisitionCounter();
                 closeModal('variantRequisitionModal');
                 const mainModalBody = document.getElementById('requisition-items-container');
                 const targetRow = mainModalBody.querySelector(`tr[data-item-id="${itemId}"]`);
