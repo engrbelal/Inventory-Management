@@ -1684,19 +1684,19 @@
             </div>
         </div>
     </div>
-     <div id="variantRequisitionModal" class="modal-overlay" style="z-index: 1052;">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
-                <h2 id="variant-req-title"></h2>
-                <button class="close-btn" onclick="closeModal('variantRequisitionModal')">&times;</button>
-            </div>
-            <div class="modal-body" id="variant-req-body">
-            </div>
-            <div class="modal-footer">
-                <button id="save-variant-req-btn" class="action-btn" style="background: var(--success-color);">সেভ করুন</button>
-            </div>
-        </div>
-    </div>
+   <div id="variantRequisitionModal" class="modal-overlay" style="z-index: 1052;">
+      <div class="modal-content" style="max-width: 400px;">
+          <div class="modal-header">
+              <h2 id="variant-req-title"></h2>
+              <button class="close-btn" onclick="closeModal('variantRequisitionModal')">&times;</button>
+          </div>
+          <div class="modal-body" id="variant-req-body">
+          </div>
+          <div class="modal-footer">
+              <button id="save-variant-req-btn" class="action-btn" style="background: var(--success-color);">সেভ করুন</button>
+          </div>
+      </div>
+  </div>
    <div id="urgentClearModal" class="modal-overlay">
       <div class="modal-content" style="max-width: 600px;">
           <div class="modal-header">
@@ -2052,7 +2052,7 @@
                 return false;
             }
         };
-        const createLedgerDescription = (entry) => {
+        const createLedgerDescription = (entry, forPlainText = false) => {
             const date = new Date(entry.date);
             const now = new Date();
             const months = ["জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"];
@@ -2071,14 +2071,33 @@
             const item = allItems.find(i => i.id === entry.itemId);
             const unit = item ? (item.unit || 'পিস') : 'পিস';
             
-            const itemNameForDisplay = entry.originalItemName || entry.itemName;
-        
+            let itemNameForDisplay = entry.originalItemName || entry.itemName;
             let detailsText = '';
+        
             if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
-                const detailsParts = Object.entries(entry.details)
-                    .map(([key, value]) => `${key}: ${toBengaliNumber(value)}`)
+                let order = entry.variantOrder;
+        
+                if (!order && item && Array.isArray(item.quantity)) {
+                    order = item.quantity.map(v => v.key);
+                }
+                
+                if (!order) {
+                    order = Object.keys(entry.details);
+                }
+        
+                const detailsParts = order
+                    .filter(key => entry.details[key] !== undefined)
+                    .map(key => `${key}: ${toBengaliNumber(entry.details[key])}`)
                     .join(', ');
-                detailsText = ` <strong style="color: #0056b3;">(${detailsParts})</strong>`;
+                
+                if (forPlainText) {
+                    detailsText = ` (${detailsParts})`;
+                } else {
+                    itemNameForDisplay = entry.itemName;
+                    detailsText = ` <strong style="color: #0056b3;">(${detailsParts})</strong>`;
+                }
+            } else if (entry.originalItemName) {
+                itemNameForDisplay = entry.originalItemName;
             }
         
             if (entry.change > 0) {
@@ -2087,15 +2106,26 @@
             } else {
                 let requisitionBadge = '';
                 if (entry.requisitionId) {
-                    if (entry.requisitionId.toString() === SPECIAL_CLEAR_PIN) {
-                        requisitionBadge = ` <span style="background-color: var(--warning-color); color: var(--dark-text); padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 5px;">বিশেষ ক্লিয়ারেন্স</span>`;
+                    if (forPlainText) {
+                        requisitionBadge = entry.requisitionId.toString() === SPECIAL_CLEAR_PIN 
+                            ? ` (বিশেষ ক্লিয়ারেন্স)` 
+                            : ` (রিকুইজিশন #${toBengaliNumber(entry.requisitionId)})`;
                     } else {
-                        const requisitionId = entry.requisitionId;
-                        const clickAction = `showRequisitionDetails(${requisitionId})`;
-                        requisitionBadge = ` <span onclick="${clickAction}" style="background-color: #e9ecef; color: #495057; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px; cursor: pointer;">#${toBengaliNumber(requisitionId)}</span>`;
+                        if (entry.requisitionId.toString() === SPECIAL_CLEAR_PIN) {
+                            requisitionBadge = ` <span style="background-color: var(--warning-color); color: var(--dark-text); padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 5px;">বিশেষ ক্লিয়ারেন্স</span>`;
+                        } else {
+                            const requisitionId = entry.requisitionId;
+                            const clickAction = `showRequisitionDetails(${requisitionId})`;
+                            requisitionBadge = ` <span onclick="${clickAction}" style="background-color: #e9ecef; color: #495057; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px; cursor: pointer;">#${toBengaliNumber(requisitionId)}</span>`;
+                        }
                     }
                 }
-                return `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} নিয়েছে ${entry.person}।${detailsText}${requisitionBadge}`;
+                
+                if (forPlainText) {
+                    return `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} নিয়েছে ${entry.person}।${detailsText}${requisitionBadge}`;
+                } else {
+                    return `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} নিয়েছে ${entry.person}${detailsText}${requisitionBadge}`;
+                }
             }
         };
 
@@ -4845,7 +4875,8 @@
             const item = allItems.find(i => i.id === entry.itemId);
             if (!item) return;
         
-            const confirmation = confirm(`আপনি কি এই লেনদেনটি মুছে ফেলতে চান?\n\nবিবরণ: ${createLedgerDescription(entry)}\nপরিমাণ: ${entry.change > 0 ? '+' : ''}${toBengaliNumber(entry.change)}`);
+            const plainTextDescription = createLedgerDescription(entry, true);
+            const confirmation = confirm(`আপনি কি এই লেনদেনটি মুছে ফেলতে চান?\n\nবিবরণ: ${plainTextDescription}\nপরিমাণ: ${entry.change > 0 ? '+' : ''}${toBengaliNumber(entry.change)}`);
             if (!confirmation) {
                 showToast('বাতিল করা হয়েছে।');
                 return;
@@ -4858,49 +4889,52 @@
             }
         
             const dbPath = getDbPath();
-            if (navigator.onLine && dbPath) {
-                try {
+            if (!dbPath) return showToast('লগইন করা নেই।', 'error');
+        
+            const isVariant = Array.isArray(item.quantity);
+            let updatedQuantity;
+        
+            if (isVariant) {
+                updatedQuantity = JSON.parse(JSON.stringify(item.quantity));
+                if (entry.details && typeof entry.details === 'object') {
+                    for (const key in entry.details) {
+                        const variant = updatedQuantity.find(v => v.key === key);
+                        const changeValue = entry.details[key];
+                        if (variant) {
+                            variant.value -= (entry.change > 0 ? changeValue : -changeValue);
+                        }
+                    }
+                }
+            } else {
+                updatedQuantity = item.quantity - entry.change;
+            }
+        
+            try {
+                if (navigator.onLine) {
                     const batch = db.batch();
                     const itemRef = dbPath.collection('items').doc(item.id);
                     const ledgerRef = dbPath.collection('ledger').doc(ledgerId);
         
-                    const newQuantity = item.quantity - entry.change;
-        
-                    batch.update(itemRef, { quantity: newQuantity });
+                    batch.update(itemRef, { quantity: updatedQuantity });
                     batch.delete(ledgerRef);
-        
                     await batch.commit();
-                    
-                    showToast('লেনদেনটি সফলভাবে মুছে ফেলা হয়েছে।');
-                    
-                    const localItem = allItems.find(i => i.id === item.id);
-                    if(localItem) localItem.quantity = newQuantity;
-                    
-                    ledger = ledger.filter(l => l.id !== ledgerId);
-        
-                    const currentTab = document.querySelector('.ledger-tab.active').id.includes('out') ? 'out' : 'in';
-                    renderLedger(currentTab);
-                    renderInventoryPage();
-                    updateSlidingNotifications();
-        
-                } catch (error) {
-                    console.error("Error deleting ledger entry from Firestore:", error);
-                    showToast('অনলাইনে লেনদেনটি মুছতে সমস্যা হয়েছে।', 'error');
-                    return; 
                 }
-            } else {
-                item.quantity -= entry.change;
-                ledger.splice(entryIndex, 1);
         
+                item.quantity = updatedQuantity;
+                ledger.splice(entryIndex, 1);
                 localStorage.setItem('items', JSON.stringify(allItems));
                 localStorage.setItem('ledger', JSON.stringify(ledger));
-                
-                showToast('লেনদেনটি সফলভাবে মুছে ফেলা হয়েছে (অফলাইন)।');
+        
+                showToast('লেনদেনটি সফলভাবে মুছে ফেলা হয়েছে।');
                 
                 const currentTab = document.querySelector('.ledger-tab.active').id.includes('out') ? 'out' : 'in';
                 renderLedger(currentTab);
                 renderInventoryPage();
                 updateSlidingNotifications();
+        
+            } catch (error) {
+                console.error("Error deleting ledger entry:", error);
+                showToast('লেনদেনটি মুছতে সমস্যা হয়েছে।', 'error');
             }
         }
 
@@ -5514,22 +5548,6 @@
                 });
             }
         }
-        function deleteUser(userId) {
-            const dbPath = getDbPath();
-            if (!dbPath) return showToast('লগইন করা নেই।', 'error');
-        
-            const executeDelete = async () => {
-                const pinVerified = await requestPinAndExecute();
-                if (!pinVerified) return;
-        
-                if (!confirm("আপনি কি নিশ্চিতভাবে এই ব্যবহারকারীকে ডিলিট করতে চান?")) return;
-                
-                dbPath.collection('app_users').doc(userId).delete()
-                    .then(() => showToast('ব্যবহারকারী ডিলিট করা হয়েছে।'))
-                    .catch(error => showToast('ব্যবহারকারী ডিলিট করতে সমস্যা হয়েছে।', 'error'));
-            };
-            executeDelete();
-        }
 
         async function deleteSection(sectionId) {
             const section = sections.find(s => s.id === sectionId);
@@ -6127,38 +6145,39 @@
             }
         
             const itemsToProvide = [];
-            let totalTransactions = 0; 
+            let totalTransactions = 0;
             for (const card of formCards) {
                 const itemId = card.querySelector('.selected-item-id').value;
                 const itemName = card.querySelector('.custom-search-input').value;
                 const item = allItems.find(i => i.id === itemId);
-            
+        
                 if (!item) {
                     return showToast(`'${itemName}' আইটেমটি পাওয়া যায়নি।`, 'error');
                 }
-            
-                const isVariant = typeof item.quantity === 'object' && item.quantity !== null;
-            
+        
+                const isVariant = Array.isArray(item.quantity);
+        
                 if (isVariant) {
                     const variantInputs = card.querySelectorAll('.pi-variant-quantity');
                     let totalVariantQty = 0;
                     let providedVariants = {};
-            
-                    variantInputs.forEach(input => {
-                        const quantity = parseFloat(input.value);
-                        if (quantity > 0) {
-                            const variantKey = input.dataset.variantKey;
-                            if (variantKey) {
-                                providedVariants[variantKey] = quantity;
+                    let variantOrder = [];
+        
+                    item.quantity.forEach(variant => {
+                        const input = Array.from(variantInputs).find(inp => inp.dataset.variantKey === variant.key);
+                        if (input) {
+                            const quantity = parseFloat(input.value);
+                            if (quantity > 0) {
+                                providedVariants[variant.key] = quantity;
                                 totalVariantQty += quantity;
+                                variantOrder.push(variant.key);
                             }
                         }
                     });
-            
+        
                     if (totalVariantQty > 0) {
-                        let variantTransactionCount = Object.keys(providedVariants).length;
-                        itemsToProvide.push({ itemId, quantity: totalVariantQty, itemName, isVariant: true, providedVariants });
-                        totalTransactions += variantTransactionCount;
+                        itemsToProvide.push({ itemId, quantity: totalVariantQty, itemName, isVariant: true, providedVariants, variantOrder });
+                        totalTransactions += Object.keys(providedVariants).length;
                     }
                 } else {
                     const quantityStr = card.querySelector('.pi-quantity-single').value;
@@ -6169,7 +6188,7 @@
                     }
                 }
             }
-            
+        
             if (itemsToProvide.length === 0) {
                 return showToast('প্রদানের জন্য কোনো আইটেমের পরিমাণ উল্লেখ করা হয়নি।', 'error');
             }
@@ -6216,7 +6235,6 @@
         
                 for (const item of itemsWithStock) {
                     if (item.isVariant) {
-                        // ভ্যারিয়েন্ট আইটেমের প্রতিটি ভ্যারিয়েন্টের জন্য স্টক চেক
                         for (const variantKey in item.providedVariants) {
                             const variantInStock = item.currentStock.find(v => v.key === variantKey);
                             if (!variantInStock || variantInStock.value < item.providedVariants[variantKey]) {
@@ -6224,7 +6242,6 @@
                             }
                         }
                     } else {
-                        // সাধারণ আইটেমের জন্য স্টক চেক
                         if (item.currentStock < item.quantity) {
                             throw new Error(`'${item.itemName}' আইটেমের অপর্যাপ্ত স্টক! (বর্তমান: ${item.currentStock})`);
                         }
@@ -6258,16 +6275,26 @@
                             date: new Date().toISOString(),
                             isUrgent: isUrgent,
                             requisitionId: requisitionIdAsNumber,
-                            details: itemData.isVariant ? itemData.providedVariants : null
+                            details: itemData.isVariant ? itemData.providedVariants : null,
+                            variantOrder: itemData.isVariant ? itemData.variantOrder : null
                         };
                         transaction.set(ledgerRef, ledgerEntry);
                     }
                 });
         
-                const totalItems = itemsToProvide.length; let successMessage; if (totalItems === 1 && totalTransactions > 1) {     successMessage = `১টি আইটেমের ${toBengaliNumber(totalTransactions)}টি ভ্যারিয়েন্ট সফলভাবে প্রদান করা হয়েছে।`; } else if (totalItems > 0) {     successMessage = `${toBengaliNumber(totalItems)}টি আইটেমের ${toBengaliNumber(totalTransactions)}টি লেনদেন সফলভাবে সম্পন্ন হয়েছে।`; }  if (successMessage) {     showToast(successMessage); }
+                const totalItems = itemsToProvide.length;
+                let successMessage;
+                if (totalItems === 1 && totalTransactions > 1) {
+                    successMessage = `১টি আইটেমের ${toBengaliNumber(totalTransactions)}টি ভ্যারিয়েন্ট সফলভাবে প্রদান করা হয়েছে।`;
+                } else if (totalItems > 0) {
+                    successMessage = `${toBengaliNumber(totalItems)}টি আইটেমের ${toBengaliNumber(totalTransactions)}টি লেনদেন সফলভাবে সম্পন্ন হয়েছে।`;
+                }
+                if (successMessage) {
+                    showToast(successMessage);
+                }
                 closeModal('provideItemModal');
                 renderUsersPage();
-                updateUrgentClearButtonVisibility();              
+                updateUrgentClearButtonVisibility();
         
             } catch (error) {
                 console.error("Operation failed:", error);
@@ -6780,25 +6807,52 @@
             const pinVerified = await requestPinAndExecute();
             if (!pinVerified) return showToast('পিন সঠিক নয়।');
         
-            if (!confirm(`আপনি কি এই লেনদেনটি মুছে ফেলতে চান?\n\nআইটেম: ${entry.itemName}\nপরিমাণ: ${toBengaliNumber(Math.abs(entry.change))}`)) return;
-        
-            item.quantity -= entry.change;
-            ledger.splice(entryIndex, 1);
-        
-            localStorage.setItem('items', JSON.stringify(allItems));
-            localStorage.setItem('ledger', JSON.stringify(ledger));
+            const plainTextDescription = createLedgerDescription(entry, true);
+            if (!confirm(`আপনি কি এই লেনদেনটি মুছে ফেলতে চান?\n\n${plainTextDescription}`)) return;
         
             const dbPath = getDbPath();
-            if (dbPath) {
-                const batch = db.batch();
-                batch.delete(dbPath.collection('ledger').doc(ledgerId));
-                batch.update(dbPath.collection('items').doc(item.id), { quantity: item.quantity });
-                await batch.commit();
+            if (!dbPath) return showToast('লগইন করা নেই।', 'error');
+        
+            const isVariant = Array.isArray(item.quantity);
+            let updatedQuantity;
+        
+            if (isVariant) {
+                updatedQuantity = JSON.parse(JSON.stringify(item.quantity));
+                if (entry.details && typeof entry.details === 'object') {
+                    for (const key in entry.details) {
+                        const variant = updatedQuantity.find(v => v.key === key);
+                        const changeValue = entry.details[key];
+                        if (variant) {
+                            variant.value += changeValue;
+                        }
+                    }
+                }
+            } else {
+                updatedQuantity = item.quantity - entry.change;
             }
         
-            showToast('লেনদেনটি সফলভাবে মুছে ফেলা হয়েছে।');
-            showUserReport(userId);
-            renderInventoryPage();
+            try {
+                if (navigator.onLine) {
+                    const batch = db.batch();
+                    batch.delete(dbPath.collection('ledger').doc(ledgerId));
+                    batch.update(dbPath.collection('items').doc(item.id), { quantity: updatedQuantity });
+                    await batch.commit();
+                }
+        
+                item.quantity = updatedQuantity;
+                ledger.splice(entryIndex, 1);
+                localStorage.setItem('items', JSON.stringify(allItems));
+                localStorage.setItem('ledger', JSON.stringify(ledger));
+        
+                showToast('লেনদেনটি সফলভাবে মুছে ফেলা হয়েছে।');
+                showUserReport(userId);
+                renderInventoryPage();
+                updateSlidingNotifications();
+        
+            } catch (error) {
+                console.error("Error deleting user transaction:", error);
+                showToast('লেনদেনটি মুছতে সমস্যা হয়েছে।', 'error');
+            }
         }
 
         function saveTempRequisition(itemId, quantity) {
