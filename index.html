@@ -4241,8 +4241,17 @@
         
                     let detailsText = '';
                     if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
-                        const detailsParts = Object.entries(entry.details)
-                            .map(([key, value]) => `${key}: ${toBengaliNumber(value)}`)
+                        let order = entry.variantOrder;
+                        if (!order && item && Array.isArray(item.quantity)) {
+                            order = item.quantity.map(v => v.key);
+                        }
+                        if (!order) {
+                            order = Object.keys(entry.details);
+                        }
+        
+                        const detailsParts = order
+                            .filter(key => entry.details[key] !== undefined)
+                            .map(key => `${key}: ${toBengaliNumber(entry.details[key])}`)
                             .join(', ');
                         detailsText = ` <strong style="color: #0056b3; font-size: 11px;">(${detailsParts})</strong>`;
                     }
