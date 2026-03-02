@@ -4102,17 +4102,58 @@
         
             const container = document.getElementById('inventoryContainer');
             const searchInput = document.getElementById('searchInput');
-            const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const searchTerm = searchInput ? searchInput.value.trim() : '';
             container.innerHTML = '';
         
-            if (sections.length === 0) {
+            if (sections.length === 0 && !searchTerm) {
                 container.innerHTML = `<p style="text-align: center; margin-top: 20px;">কোনো সেকশন তৈরি করা হয়নি।</p>`;
                 return;
             }
         
+            const searchAsNumber = parseInt(searchTerm, 10);
+            if (!isNaN(searchAsNumber) && searchTerm.length > 2) {
+                const requisitionEntries = ledger.filter(entry => entry.requisitionId === searchAsNumber);
+                if (requisitionEntries.length > 0) {
+                    const firstEntry = requisitionEntries[0];
+                    const person = firstEntry.person;
+                    const date = new Date(firstEntry.date).toLocaleDateString('bn-BD', {
+                        day: 'numeric', month: 'long', year: 'numeric'
+                    });
+        
+                    let itemsHTML = '';
+                    requisitionEntries.forEach(entry => {
+                        const item = allItems.find(i => i.id === entry.itemId);
+                        const unit = item ? (item.unit || 'পিস') : 'পিস';
+                        let detailsText = '';
+                        if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
+                            const detailsParts = Object.entries(entry.details)
+                                .map(([key, value]) => `${key}: ${toBengaliNumber(value)}`)
+                                .join(', ');
+                            detailsText = ` <small>(${detailsParts})</small>`;
+                        }
+                        itemsHTML += `<li style="padding: 6px 0; border-bottom: 1px solid #f1f1f1;">${entry.itemName}${detailsText} - <strong>${toBengaliNumber(Math.abs(entry.change))} ${unit}</strong></li>`;
+                    });
+        
+                    const resultCardHTML = `
+                        <div class="card" style="background: #eef; border-left: 5px solid #0056b3;">
+                            <div style="padding: 12px;">
+                                <p style="margin: 0 0 5px 0;"><strong>রিকুইজিশন নং:</strong> ${toBengaliNumber(searchAsNumber)}</p>
+                                <p style="margin: 0 0 15px 0;"><strong>কর্মচারী:</strong> ${person} | <strong>তারিখ:</strong> ${date}</p>
+                                <h4 style="margin: 0 0 8px 0; font-size: 14px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">আইটেমের তালিকা</h4>
+                                <ul style="list-style-type: none; margin: 0; padding: 0; font-size: 13px;">
+                                    ${itemsHTML}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML = resultCardHTML;
+                    return;
+                }
+            }
+        
             let filteredAndScoredItems = [];
             if (searchTerm) {
-                const searchWords = searchTerm.split(' ').filter(w => w);
+                const searchWords = searchTerm.toLowerCase().split(' ').filter(w => w);
         
                 filteredAndScoredItems = allItems.map(item => {
                     const lowerItemName = item.name.toLowerCase();
@@ -4196,7 +4237,7 @@
             });
         
             if (!foundItems && searchTerm) {
-                container.innerHTML = `<p style="text-align: center; margin-top: 20px;">'${searchInput.value}' নামে কোনো আইটেম পাওয়া যায়নি।</p>`;
+                container.innerHTML = `<p style="text-align: center; margin-top: 20px;">'${searchInput.value}' নামে কোনো আইটেম বা রিকুইজিশন পাওয়া যায়নি।</p>`;
             } else if (allItems.length === 0) {
                 container.innerHTML = `<p style="text-align: center; margin-top: 20px;">কোনো আইটেম যোগ করা হয়নি।</p>`;
             }
@@ -4212,6 +4253,7 @@
                 }, 100);
             }
         }
+
         function openVariantStockEditor(item) {
             const modal = document.getElementById('variantStockEditorModal');
             const title = document.getElementById('variant-editor-title');
