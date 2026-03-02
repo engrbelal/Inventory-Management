@@ -267,7 +267,16 @@
             align-items: center;
             justify-content: center;
         }
-        
+        /* নতুন এই ক্লাসটি যোগ করুন */
+        .req-action-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }        
         .stock-cell {
             cursor: pointer;
             text-align: right;
@@ -1021,7 +1030,48 @@
                 font-size: 14px !important;
             }
         }
+        .read-only-mode .action-btn,
+        .read-only-mode .add-item-btn,
+        .read-only-mode .provide-item-btn,
+        .read-only-mode .delete-btn,
+        .read-only-mode .delete-section-btn,
+        .read-only-mode .urgent-clear-bar,
+        .read-only-mode #reports-page .card:not(:first-child):not(:nth-child(2)) {
+            display: none !important;
+        }
+        .read-only-mode #provideItemModal .modal-footer,
+        .read-only-mode #itemAddModal .modal-footer,
+        .read-only-mode #itemDetailsModal .modal-footer,
+        .read-only-mode #variantStockEditorModal .modal-footer {
+            display: none !important;
+        }
+        .read-only-mode .item-name-cell,
+        .read-only-mode .stock-cell,
+        .read-only-mode .section-title {
+            cursor: default !important;
+        }
 
+        .read-only-mode .item-name-cell:hover,
+        .read-only-mode .stock-cell:hover,
+        .read-only-mode .section-title:hover {
+            color: var(--dark-text) !important;
+        }
+        .read-only-mode .requisition-btn {
+            display: block !important; /* এই বাটনটি read-only মোডেও দেখা যাবে */
+        }
+        .modal-content {
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+            height: auto;
+        }
+        #electricianRequisitionModal .modal-footer {
+            flex-wrap: nowrap; /* বাটনগুলোকে নিচে নামতে বাধা দেবে */
+        }                
+#management-action-bar .action-btn {
+    font-size: 12px;
+}
+        
     </style>
 </head>
 <body>
@@ -1093,15 +1143,30 @@
         <!-- Inventory Page -->
         <div id="inventory-page" class="page active">
             <div class="container">
-                <div class="action-bar">
+                <div id="admin-action-bar" class="action-bar" style="display: none;">
                     <button class="add-item-btn" onclick="openItemAddModal()">নতুন আইটেম যোগ করুন ➕</button>
                     <button class="provide-item-btn" onclick="openProvideItemModal()">আইটেম প্রদান করুন ➖</button>
                 </div>
-                <div id="urgent-clear-bar" style="display: none; text-align: center; margin-bottom: 15px;">
-                    <button id="open-urgent-clear-modal-btn" class="action-btn" style="background-color: var(--danger-color); width: auto; padding: 8px 15px; font-size: 12px;">
-                        অমীমাংসিত জরুরী লেনদেন ক্লিয়ার করুন
+                
+                <div id="electrician-action-bar" class="action-bar" style="display: none;">
+                    <button class="action-btn requisition-btn" style="background-color: var(--success-color); max-width: 500px;" onclick="openElectricianRequisitionModal()">
+                        ডিজিটাল রিকুইজিশন আবেদন করুন 📝
                     </button>
-                </div>                
+                </div>
+                
+                <div id="management-action-bar" class="action-bar" style="display: none; flex-wrap: wrap; justify-content: center;">
+                    <div id="requisition-management-bar" style="display: none; flex-basis: auto; flex-grow: 0; margin-bottom: 10px;">
+                        <button class="action-btn" style="background-color: #007bff; width: 100%;" onclick="openRequisitionManagementModal()">
+                            নতুন রিকুইজিশন আছে <span id="pending-req-count-badge" style="background-color: white; color: #007bff; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: 8px;"></span>
+                        </button>
+                    </div>
+                    <div id="urgent-clear-bar" style="display: none; flex-basis: auto; flex-grow: 0; margin-bottom: 10px;">
+                        <button id="open-urgent-clear-modal-btn" class="action-btn" style="background-color: var(--danger-color); width: 100%;">
+                            জরুরী লেনদেন
+                        </button>
+                    </div>
+                </div>
+
                 <div class="card">
                     <div class="form-group" style="margin-bottom: 0; box-shadow: none; padding: 5px;">
                         <input type="text" id="searchInput" autocomplete="off" onkeyup="renderInventoryPage()" placeholder="🔍 এখানে আইটেমের নাম লিখে সার্চ করুন..." style="font-size: 14px;">
@@ -1854,6 +1919,74 @@
       </div>
   </div>
   <!-- ================================================== -->
+  <!-- ইলেকট্রিশিয়ান রিকুইজিশন মডাল (নতুন এবং উন্নত) -->
+  <div id="electricianRequisitionModal" class="modal-overlay">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h2>নতুন রিকুইজিশন আবেদন</h2>
+              <button class="close-btn" onclick="closeModal('electricianRequisitionModal')">&times;</button>
+          </div>
+          
+          <!-- নতুন যুক্ত করা অংশ -->
+          <div id="my-pending-req-list" style="padding: 0 15px; max-height: 200px; overflow-y: auto; border-bottom: 1px solid #e0e0e0;">
+              <!-- পেন্ডিং আবেদনগুলো এখানে লোড হবে -->
+          </div>
+          
+          <div class="modal-body" id="elec-req-items-container">
+              <!-- আইটেম ফর্মগুলো এখানে যুক্ত হবে -->
+          </div>
+          <div class="modal-footer" style="justify-content: space-between;">
+              <button onclick="addElecRequisitionItemForm()">আরেকটি আইটেম ➕</button>
+              <button id="submit-elec-req-btn" style="background: var(--success-color); color: white; flex-grow: 1;" onclick="submitElectricianRequisition()">
+                  সাবমিট করুন  🚀
+              </button>
+          </div>
+      </div>
+  </div>
+  <!-- রিকুইজিশন ম্যানেজমেন্ট মডাল (নতুন) -->
+  <div id="requisitionManagementModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 700px;">
+          <div class="modal-header">
+              <h2>রিকুইজিশন ম্যানেজমেন্ট</h2>
+              <button class="close-btn" onclick="closeModal('requisitionManagementModal')">&times;</button>
+          </div>
+          <div class="modal-body" id="pending-requisitions-container">
+              <!-- পেন্ডিং রিকুইজিশনগুলো এখানে লোড হবে -->
+          </div>
+      </div>
+  </div>
+  
+  <!-- রিকুইজিশন অনুমোদন মডাল (নতুন) -->
+  <div id="approveRequisitionModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 500px;">
+          <div class="modal-header">
+              <h2 id="approve-modal-title">রিকুইজিশন অনুমোদন</h2>
+              <button class="close-btn" onclick="closeModal('approveRequisitionModal')">&times;</button>
+          </div>
+          <div class="modal-body">
+              <div id="approve-req-details" style="margin-bottom: 15px; background: #f8f9fa; padding: 10px; border-radius: 8px;">
+                  <!-- অনুমোদনের জন্য রিকুইজিশনের বিস্তারিত এখানে দেখানো হবে -->
+              </div>
+              <div id="approve-requisition-id-group" class="form-group" style="margin: 0; padding: 0; box-shadow: none; position: relative; display: flex; align-items: center; gap: 5px;">
+                  <input type="number" inputmode="numeric" pattern="[0-9]*" id="approve-requisition-id" autocomplete="off" placeholder="রিকুইজিশন নম্বর দিন" onkeyup="handleApproveRequisitionSearchUI(this.value)" style="flex-grow: 1;">
+                  <button id="approve-req-search-btn" onclick="searchApproveRequisitionByNumber()" style="display: none; padding: 6px 10px; font-size: 14px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">🔍</button>
+                  <div id="approve-req-id-status" style="position: absolute; top: 100%; left: 0; width: 100%; font-size: 11px; font-weight: 600; margin-top: 2px;"></div>
+              </div>
+              <div id="approve-requisition-search-result-container" style="margin-top: 15px;"></div>
+              <div style="display: flex; margin-top: 15px;">
+                  <div class="form-group" style="background: var(--level-low-bg); display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 10px; margin-bottom: 0; width: 100%;">
+                      <input type="checkbox" id="approve-is-urgent" style="width: auto;" onchange="toggleApproveRequisitionIdField(this.checked)">
+                      <label for="approve-is-urgent" style="margin: 0;">রিকুইজিশন নম্বর ছাড়া (জরুরী)</label>
+                  </div>
+              </div>
+          </div>
+          <div class="modal-footer">
+              <button id="execute-approve-btn" style="background: var(--success-color); color: white; width: 100%;" onclick="executeApproveRequisition()">
+                  অনুমোদন ও প্রদান করুন
+              </button>
+          </div>
+      </div>
+  </div>
     <script>
         // --- Global State & Constants ---
         const firebaseConfig = {
@@ -1888,6 +2021,27 @@
             "X85JKidshVWCJaNO1HVcXknpfbp2",
             "5xjowSXQKaPDWotozJlRLn6M7lw1"
         ];
+        const ELECTRICIAN_UIDS = [
+          "pJYvRUwkOCWjn7ujZXXjsfvyyHW2"
+          ];
+
+        function getUserRole(uid) {
+            if (ADMIN_UIDS.includes(uid)) {
+                return 'admin';
+            }
+            if (ELECTRICIAN_UIDS.includes(uid)) {
+                return 'electrician';
+            }
+            return 'user';
+        }
+
+        const securityCheck = (operationName = 'এই কাজটি') => {
+            if (currentUser && getUserRole(currentUser.uid) === 'electrician') {
+                showToast(`আপনার ${operationName} করার অনুমতি নেই।`, 'error');
+                return false;
+            }
+            return true;
+        };
         const CENTRAL_DB_ID = "grgl_central_store";
         const SECURITY_PIN = "0000";
         const SPECIAL_CLEAR_PIN = "9999";
@@ -1920,7 +2074,9 @@
             const user = auth.currentUser;
             if (!user) return null;
         
-            const dbId = ADMIN_UIDS.includes(user.uid) ? CENTRAL_DB_ID : user.uid;
+            const dbId = (ADMIN_UIDS.includes(user.uid) || ELECTRICIAN_UIDS.includes(user.uid)) 
+                ? CENTRAL_DB_ID 
+                : user.uid;
             
             return db.collection('inventories').doc(dbId);
         }
@@ -4199,19 +4355,539 @@
             container.appendChild(row);
             row.querySelector('.variant-editor-name').focus();
         }
+        let currentApprovingRequisition = null;
+        
+        function updatePendingReqBadge() {
+            const dbPath = getDbPath();
+            if (!dbPath || (currentUser && getUserRole(currentUser.uid) === 'electrician')) return;
+        
+            const managementBar = document.getElementById('requisition-management-bar');
+            const badge = document.getElementById('pending-req-count-badge');
+        
+            if (!managementBar || !badge) return;
+        
+            dbPath.collection('requisitions').where('status', '==', 'pending').onSnapshot(snapshot => {
+                const count = snapshot.size;
+                if (count > 0) {
+                    badge.textContent = toBengaliNumber(count);
+                    managementBar.style.display = 'block';
+                } else {
+                    managementBar.style.display = 'none';
+                }
+            });
+        }
+
+        async function openRequisitionManagementModal() {
+            const container = document.getElementById('pending-requisitions-container');
+            container.innerHTML = '<p>লোড হচ্ছে...</p>';
+            openModal('requisitionManagementModal');
+        
+            const dbPath = getDbPath();
+            if (!dbPath) {
+                container.innerHTML = '<p>ডেটাবেস খুঁজে পাওয়া যায়নি।</p>';
+                return;
+            }
+        
+            try {
+                const snapshot = await dbPath.collection('requisitions').where('status', '==', 'pending').orderBy('createdAt', 'desc').get();
+                if (snapshot.empty) {
+                    container.innerHTML = '<p style="text-align: center; padding: 20px;">কোনো পেন্ডিং রিকুইজিশন নেই।</p>';
+                    return;
+                }
+        
+                let html = '';
+                snapshot.docs.forEach(doc => {
+                    const req = { id: doc.id, ...doc.data() };
+                    const date = new Date(req.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' });
+                    
+                    html += `
+                        <div class="card" style="margin-bottom: 10px;">
+                            <div class="card-header" style="padding: 10px 15px; background-color: #f8f9fa;">
+                                <h3 style="margin:0; font-size: 14px;">আবেদনকারী: ${req.requesterName}</h3>
+                                <small>${date}</small>
+                            </div>
+                            <div style="padding: 15px;">
+                                <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+                                    ${req.items.map(item => {
+                                        let detailsText = '';
+                                        if (item.details && typeof item.details === 'object' && Object.keys(item.details).length > 0) {
+                                            const originalItem = allItems.find(i => i.id === item.itemId);
+                                            let variantOrder = [];
+                                            if (originalItem && Array.isArray(originalItem.quantity)) {
+                                                variantOrder = originalItem.quantity.map(v => v.key);
+                                            } else {
+                                                variantOrder = Object.keys(item.details);
+                                            }
+        
+                                            const detailsParts = variantOrder
+                                                .filter(key => item.details[key] !== undefined)
+                                                .map(key => `${key}: ${toBengaliNumber(item.details[key])}`)
+                                                .join(', ');
+                                            detailsText = ` <strong style="color: #0056b3;">(${detailsParts})</strong>`;
+                                        }
+                                        return `<li>${item.itemName} - <strong>${toBengaliNumber(item.quantity)} ${item.unit}</strong>${detailsText}</li>`;
+                                    }).join('')}
+                                </ul>
+                            </div>
+                            <div class="modal-footer" style="justify-content: flex-end; gap: 10px;">
+                                <button style="background-color: var(--danger-color);" onclick="updateRequisitionStatus('${req.id}', 'rejected')">বাতিল</button>
+                                <button style="background-color: var(--success-color);" onclick="prepareApproveModal('${req.id}')">অনুমোদন করুন</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+        
+            } catch (error) {
+                console.error("Error fetching requisitions:", error);
+                container.innerHTML = '<p>রিকুইজিশন আনতে সমস্যা হয়েছে।</p>';
+            }
+        }
+
+        async function updateRequisitionStatus(reqId, newStatus) {
+            if (!confirm(`আপনি কি নিশ্চিত যে এই আবেদনটি '${newStatus}' করতে চান?`)) return;
+        
+            const dbPath = getDbPath();
+            if (!dbPath) return;
+        
+            try {
+                await dbPath.collection('requisitions').doc(reqId).update({ status: newStatus });
+                showToast(`আবেদনটি সফলভাবে '${newStatus}' করা হয়েছে।`);
+                openRequisitionManagementModal();
+            } catch (error) {
+                showToast('স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে।', 'error');
+            }
+        }
+        
+        async function prepareApproveModal(reqId) {
+            const dbPath = getDbPath();
+            if (!dbPath) return;
+        
+            const doc = await dbPath.collection('requisitions').doc(reqId).get();
+            if (!doc.exists) {
+                return showToast('রিকুইজিশনটি খুঁজে পাওয়া যায়নি।', 'error');
+            }
+            
+            currentApprovingRequisition = { id: doc.id, ...doc.data() };
+        
+            const detailsContainer = document.getElementById('approve-req-details');
+            
+            const itemsHTML = currentApprovingRequisition.items.map(item => {
+                let detailsText = '';
+                if (item.details && typeof item.details === 'object' && Object.keys(item.details).length > 0) {
+                    const originalItem = allItems.find(i => i.id === item.itemId);
+                    let variantOrder = [];
+                    if (originalItem && Array.isArray(originalItem.quantity)) {
+                        variantOrder = originalItem.quantity.map(v => v.key);
+                    } else {
+                        variantOrder = Object.keys(item.details);
+                    }
+        
+                    const detailsParts = variantOrder
+                        .filter(key => item.details[key] !== undefined)
+                        .map(key => `${key}: ${toBengaliNumber(item.details[key])}`)
+                        .join(', ');
+                    detailsText = ` <strong style="color: #0056b3;">(${detailsParts})</strong>`;
+                }
+                return `<li>${item.itemName} - <strong>${toBengaliNumber(item.quantity)} ${item.unit}</strong>${detailsText}</li>`;
+            }).join('');
+        
+            detailsContainer.innerHTML = `
+                <p style="margin:0 0 5px 0;"><strong>আবেদনকারী:</strong> ${currentApprovingRequisition.requesterName}</p>
+                <strong>আইটেমসমূহ:</strong>
+                <ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 13px;">
+                    ${itemsHTML}
+                </ul>
+            `;
+        
+            document.getElementById('approve-requisition-id').value = '';
+            document.getElementById('approve-req-id-status').textContent = '';
+            document.getElementById('approve-requisition-search-result-container').innerHTML = '';
+            document.getElementById('approve-is-urgent').checked = false;
+            toggleApproveRequisitionIdField(false);
+            handleApproveRequisitionSearchUI(''); // ইনপুট বক্স ও স্ট্যাটাস রিসেট করার জন্য
+            document.getElementById('approve-requisition-search-result-container').innerHTML = '';
+        
+            openModal('approveRequisitionModal');
+        }
+
+        function toggleApproveRequisitionIdField(isUrgent) {
+            document.getElementById('approve-requisition-id-group').style.display = isUrgent ? 'none' : 'flex';
+        }
+        
+        function handleApproveRequisitionSearchUI(value) {
+            const searchBtn = document.getElementById('approve-req-search-btn');
+            const reqValue = value.trim();
+            checkApproveRequisitionId();
+        
+            const isExisting = ledger.some(entry => entry.requisitionId === parseInt(reqValue, 10));
+            searchBtn.style.display = isExisting ? 'block' : 'none';
+        }
+        
+        function searchApproveRequisitionByNumber() {
+            const reqInput = document.getElementById('approve-requisition-id');
+            const resultContainer = document.getElementById('approve-requisition-search-result-container');
+            const reqId = parseInt(reqInput.value.trim(), 10);
+        
+            resultContainer.innerHTML = '';
+        
+            if (isNaN(reqId)) {
+                return showToast('অনুগ্রহ করে একটি সঠিক রিকুইজিশন নম্বর দিন।', 'error');
+            }
+        
+            const entries = ledger.filter(entry => entry.requisitionId === reqId);
+        
+            if (entries.length === 0) {
+                resultContainer.innerHTML = `<div class="card" style="background-color: var(--level-very-low-bg);"><p style="text-align: center; margin: 0; padding: 10px; font-weight: 500;">রিকুইজিশন নম্বর '${toBengaliNumber(reqId)}' এর জন্য কোনো তথ্য পাওয়া যায়নি।</p></div>`;
+                return;
+            }
+        
+            const firstEntry = entries[0];
+            const person = firstEntry.person;
+            const date = new Date(firstEntry.date).toLocaleDateString('bn-BD', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            });
+        
+            let itemsHTML = '';
+            entries.forEach(entry => {
+                const item = allItems.find(i => i.id === entry.itemId);
+                const unit = item ? (item.unit || 'পিস') : 'পিস';
+                let detailsText = '';
+                if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
+                    const detailsParts = Object.entries(entry.details)
+                        .map(([key, value]) => `${key}: ${toBengaliNumber(value)}`)
+                        .join(', ');
+                    detailsText = ` <small>(${detailsParts})</small>`;
+                }
+                itemsHTML += `<li style="padding: 5px 0; border-bottom: 1px solid #eee;">${entry.itemName}${detailsText} - <strong>${toBengaliNumber(Math.abs(entry.change))} ${unit}</strong></li>`;
+            });
+        
+            const resultCardHTML = `
+                <div class="card" style="background: #eef; border-left: 5px solid #0056b3;">
+                    <div style="padding: 10px;">
+                        <p style="margin: 0 0 5px 0;"><strong>রিকুইজিশন নং:</strong> ${toBengaliNumber(reqId)}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>কর্মচারী:</strong> ${person} | <strong>তারিখ:</strong> ${date}</p>
+                        <ul style="list-style-type: disc; margin: 0; padding-left: 20px; font-size: 13px;">
+                            ${itemsHTML}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        
+            resultContainer.innerHTML = resultCardHTML;
+        }
+
+        let approveReqCheckDebounceTimer;
+        function checkApproveRequisitionId() {
+            const reqInput = document.getElementById('approve-requisition-id');
+            const statusDiv = document.getElementById('approve-req-id-status');
+            const reqValue = reqInput.value.trim();
+        
+            reqInput.classList.remove('valid', 'invalid');
+            statusDiv.textContent = '';
+        
+            if (!reqValue) return;
+        
+            clearTimeout(approveReqCheckDebounceTimer);
+            approveReqCheckDebounceTimer = setTimeout(async () => {
+                const reqIdNum = parseInt(reqValue, 10);
+                if (isNaN(reqIdNum)) {
+                    statusDiv.textContent = 'সঠিক নম্বর দিন।';
+                    statusDiv.style.color = 'var(--danger-color)';
+                    reqInput.classList.add('invalid');
+                    return;
+                }
+        
+                statusDiv.textContent = 'চেক করা হচ্ছে...';
+                statusDiv.style.color = '#6c757d';
+        
+                const isExisting = ledger.some(entry => entry.requisitionId === reqIdNum);
+                if (isExisting) {
+                    statusDiv.textContent = 'নম্বরটি ব্যবহৃত হয়েছে।';
+                    statusDiv.style.color = 'var(--danger-color)';
+                    reqInput.classList.add('invalid');
+                } else {
+                    statusDiv.textContent = 'নম্বরটি উপলব্ধ।';
+                    statusDiv.style.color = 'var(--success-color)';
+                    reqInput.classList.add('valid');
+                }
+            }, 500);
+        }
+
+        async function executeApproveRequisition() {
+            if (!currentApprovingRequisition) return;
+        
+            const isUrgent = document.getElementById('approve-is-urgent').checked;
+            const requisitionIdValue = document.getElementById('approve-requisition-id').value.trim();
+            const requisitionId = isUrgent ? null : parseInt(requisitionIdValue, 10);
+        
+            if (!isUrgent && !requisitionIdValue) {
+                return showToast('অনুগ্রহ করে রিকুইজিশন নম্বর দিন অথবা জরুরী হিসেবে অনুমোদন করুন।', 'error');
+            }
+        
+            const dbPath = getDbPath();
+            if (!dbPath) return;
+        
+            try {
+                if (!isUrgent) {
+                    const isExisting = ledger.some(entry => entry.requisitionId === requisitionId);
+                    if (isExisting) {
+                        return showToast(`রিকুইজিশন নম্বর '${requisitionIdValue}' ইতোমধ্যে ব্যবহৃত হয়েছে।`, 'error');
+                    }
+                }
+        
+                const batch = db.batch();
+                const itemsToUpdate = currentApprovingRequisition.items;
+        
+                for (const reqItem of itemsToUpdate) {
+                    const itemRef = dbPath.collection('items').doc(reqItem.itemId);
+                    const itemDoc = await itemRef.get();
+                    if (!itemDoc.exists) throw new Error(`আইটেম '${reqItem.itemName}' খুঁজে পাওয়া যায়নি।`);
+        
+                    const currentItem = itemDoc.data();
+                    const isVariant = Array.isArray(currentItem.quantity);
+                    
+                    if (isVariant) {
+                        const newQuantityArray = [...currentItem.quantity];
+                        for (const key in reqItem.details) {
+                            const variantIndex = newQuantityArray.findIndex(v => v.key === key);
+                            if (variantIndex === -1 || newQuantityArray[variantIndex].value < reqItem.details[key]) {
+                                throw new Error(`'${reqItem.itemName}' (${key}) এর অপর্যাপ্ত স্টক।`);
+                            }
+                            newQuantityArray[variantIndex].value -= reqItem.details[key];
+                        }
+                        batch.update(itemRef, { quantity: newQuantityArray });
+                    } else {
+                        if (currentItem.quantity < reqItem.quantity) {
+                            throw new Error(`'${reqItem.itemName}' এর অপর্যাপ্ত স্টক।`);
+                        }
+                        batch.update(itemRef, { quantity: firebase.firestore.FieldValue.increment(-reqItem.quantity) });
+                    }
+        
+                    const ledgerRef = dbPath.collection('ledger').doc();
+                    
+                    let finalVariantOrder = null;
+                    if (reqItem.details) {
+                        const originalItem = allItems.find(i => i.id === reqItem.itemId);
+                        if (originalItem && Array.isArray(originalItem.quantity)) {
+                            finalVariantOrder = originalItem.quantity.map(v => v.key);
+                        } else {
+                            finalVariantOrder = Object.keys(reqItem.details);
+                        }
+                    }
+        
+                    batch.set(ledgerRef, {
+                        itemId: reqItem.itemId,
+                        itemName: reqItem.itemName,
+                        change: -reqItem.quantity,
+                        person: currentApprovingRequisition.requesterName,
+                        date: new Date().toISOString(),
+                        isUrgent: isUrgent,
+                        requisitionId: requisitionId,
+                        details: reqItem.details,
+                        variantOrder: finalVariantOrder
+                    });
+                }
+        
+                const reqRef = dbPath.collection('requisitions').doc(currentApprovingRequisition.id);
+                batch.update(reqRef, { status: 'approved', approvedAt: new Date().toISOString(), approvalRequisitionId: requisitionId });
+        
+                await batch.commit();
+                showToast('রিকুইজিশন সফলভাবে অনুমোদন এবং প্রদান করা হয়েছে।');
+                closeModal('approveRequisitionModal');
+                openRequisitionManagementModal();
+        
+            } catch (error) {
+                console.error("Approval failed:", error);
+                showToast(error.message || 'অনুমোদন প্রক্রিয়া ব্যর্থ হয়েছে।', 'error');
+            }
+        }
 
         function updateUrgentClearButtonVisibility() {
             const hasUrgent = ledger.some(entry => entry.isUrgent === true);
             const urgentBar = document.getElementById('urgent-clear-bar');
-            if (urgentBar) {
-                urgentBar.style.display = hasUrgent ? 'block' : 'none';
-                if (hasUrgent) {
-                    const urgentBtn = document.getElementById('open-urgent-clear-modal-btn');
-                    urgentBtn.onclick = openUrgentClearModal;
+        
+            if (!urgentBar) return;
+        
+            if (hasUrgent && currentUser && getUserRole(currentUser.uid) !== 'electrician') {
+                urgentBar.style.display = 'block';
+                urgentBar.querySelector('button').onclick = openUrgentClearModal;
+            } else {
+                urgentBar.style.display = 'none';
+            }
+        }
+
+        let currentEditingRequisitionId = null;
+        
+        async function loadMyPendingRequisitions() {
+            const container = document.getElementById('my-pending-req-list');
+            if (!container) return;
+            container.innerHTML = '';
+        
+            const dbPath = getDbPath();
+            if (!dbPath || !currentUser) return;
+        
+            try {
+                const snapshot = await dbPath.collection('requisitions')
+                    .where('requesterId', '==', currentUser.uid)
+                    .where('status', '==', 'pending')
+                    .orderBy('createdAt', 'desc').get();
+        
+                if (snapshot.empty) {
+                    container.style.display = 'none';
+                    return;
                 }
+                
+                container.style.display = 'block';
+                let html = '<h4 style="font-size: 13px; margin: 10px 0 5px 0; color: #333;">আপনার পেন্ডিং আবেদন:</h4>';
+                
+                snapshot.docs.forEach(doc => {
+                    const req = { id: doc.id, ...doc.data() };
+                    const date = new Date(req.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long' });
+        
+                    const itemsListHTML = req.items.map(item => {
+                        let detailsText = '';
+                        if (item.details) {
+                            const originalItem = allItems.find(i => i.id === item.itemId);
+                            let variantOrder = [];
+                            if (originalItem && Array.isArray(originalItem.quantity)) {
+                                variantOrder = originalItem.quantity.map(v => v.key);
+                            } else {
+                                variantOrder = Object.keys(item.details);
+                            }
+                            detailsText = ' (' + variantOrder
+                                .filter(key => item.details[key])
+                                .map(key => `${key}: ${toBengaliNumber(item.details[key])}`)
+                                .join(', ') + ')';
+                        }
+                        return `<li style="font-size: 11px; color: #555;">${item.itemName} - <strong>${toBengaliNumber(item.quantity)} ${item.unit}</strong>${detailsText}</li>`;
+                    }).join('');
+        
+                    html += `
+                        <div class="card" style="margin-bottom: 10px; box-shadow: none; border: 1px solid #ddd;">
+                            <div class="card-header" style="padding: 8px 12px; background-color: #f8f9fa; justify-content: space-between;">
+                                <h3 style="margin:0; font-size: 13px; font-weight: 600;">${date}</h3>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <button onclick="deleteMyRequisition('${req.id}')" style="background:none; border:none; cursor:pointer; padding:0; font-size: 14px; color: var(--danger-color);">🗑️</button>
+                                    <button onclick="openEditRequisitionModal('${req.id}')" style="background:none; border:none; cursor:pointer; padding:0; font-size: 14px; color: #007bff;">✏️</button>
+                                </div>
+                            </div>
+                            <div style="padding: 8px 12px;">
+                                <ul style="margin: 0; padding-left: 18px;">
+                                    ${itemsListHTML}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } catch (error) {
+                console.error("Error fetching my requisitions:", error);
+            }
+        }
+
+        async function deleteMyRequisition(reqId) {
+            if (!confirm('আপনি কি নিশ্চিত যে এই আবেদনটি মুছে ফেলতে চান?')) return;
+        
+            const dbPath = getDbPath();
+            if (!dbPath) return;
+        
+            try {
+                await dbPath.collection('requisitions').doc(reqId).delete();
+                showToast('আবেদনটি সফলভাবে মুছে ফেলা হয়েছে।', 'success');
+                loadMyPendingRequisitions();
+            } catch (error) {
+                showToast('আবেদনটি মুছতে সমস্যা হয়েছে।', 'error');
             }
         }
         
+        async function openEditRequisitionModal(reqId) {
+            const dbPath = getDbPath();
+            if (!dbPath) return;
+        
+            const doc = await dbPath.collection('requisitions').doc(reqId).get();
+            if (!doc.exists) {
+                return showToast('আবেদনটি খুঁজে পাওয়া যায়নি।', 'error');
+            }
+            
+            const requisition = doc.data();
+            currentEditingRequisitionId = reqId;
+        
+            const modal = document.getElementById('electricianRequisitionModal');
+            modal.querySelector('h2').textContent = 'রিকুইজিশন এডিট করুন';
+            const submitBtn = document.getElementById('submit-elec-req-btn');
+            submitBtn.textContent = 'আপডেট করুন 🚀';
+            submitBtn.onclick = updateElectricianRequisition;
+        
+            const itemsContainer = document.getElementById('elec-req-items-container');
+            itemsContainer.innerHTML = '';
+        
+            requisition.items.forEach(itemData => {
+                addElecRequisitionItemForm(itemData);
+            });
+        }
+        
+        async function updateElectricianRequisition() {
+            if (!currentEditingRequisitionId) return;
+        
+            const itemForms = document.querySelectorAll('#elec-req-items-container .item-form-card');
+            const itemsToRequisition = [];
+        
+            for (const form of itemForms) {
+                const itemId = form.querySelector('.selected-item-id').value;
+                const item = allItems.find(i => i.id === itemId);
+                if (!item) continue;
+        
+                const isVariant = Array.isArray(item.quantity);
+                let requisitionDetails = {};
+                let totalQuantity = 0;
+        
+                if (isVariant) {
+                    const variantInputs = form.querySelectorAll('.pi-variant-quantity');
+                    variantInputs.forEach(input => {
+                        const quantity = parseFloat(input.value) || 0;
+                        if (quantity > 0) {
+                            requisitionDetails[input.dataset.variantKey] = quantity;
+                            totalQuantity += quantity;
+                        }
+                    });
+                } else {
+                    const singleInput = form.querySelector('.elec-req-quantity-single');
+                    totalQuantity = parseFloat(singleInput.value) || 0;
+                }
+        
+                if (totalQuantity > 0) {
+                    itemsToRequisition.push({
+                        itemId: item.id,
+                        itemName: item.name,
+                        quantity: totalQuantity,
+                        unit: item.unit || 'পিস',
+                        details: isVariant && Object.keys(requisitionDetails).length > 0 ? requisitionDetails : null
+                    });
+                }
+            }
+        
+            if (itemsToRequisition.length === 0) {
+                return showToast('চাহিদার পরিমাণসহ অন্তত একটি আইটেম সঠিকভাবে পূরণ করুন।', 'error');
+            }
+        
+            const dbPath = getDbPath();
+            if (!dbPath) return;
+        
+            try {
+                await dbPath.collection('requisitions').doc(currentEditingRequisitionId).update({
+                    items: itemsToRequisition,
+                    updatedAt: new Date().toISOString()
+                });
+                
+                showToast('আপনার আবেদন সফলভাবে আপডেট করা হয়েছে।', 'success');
+                closeModal('electricianRequisitionModal');
+            } catch (error) {
+                console.error("Requisition update failed:", error);
+                showToast('আবেদন আপডেট করতে সমস্যা হয়েছে।', 'error');
+            }
+        }
+
         function openUrgentClearModal() {
             const container = document.getElementById('urgent-items-container');
             const urgentEntries = ledger.filter(entry => entry.isUrgent === true);
@@ -4629,6 +5305,7 @@
         }
         
         async function editItemUnit(itemId) {
+          if (!securityCheck()) return;
             const item = allItems.find(i => i.id === itemId);
             if (!item) return;
         
@@ -4877,6 +5554,7 @@
         }
 
         async function deleteLedgerEntry(ledgerId) {
+          if (!securityCheck()) return;
             const entryIndex = ledger.findIndex(e => e.id === ledgerId);
             if (entryIndex === -1) return;
         
@@ -4992,6 +5670,7 @@
                 
         // --- Data Manipulation ---
         async function editItemName() {
+          if (!securityCheck()) return;
             const dbPath = getDbPath();
             if (!dbPath) return showToast('লগইন করা নেই।', 'error');
         
@@ -5028,6 +5707,7 @@
         }
 
         async function moveItem() {
+          if (!securityCheck()) return;
             const item = allItems.find(i => i.id === activeItemId);
             if (!item) return;
         
@@ -5098,6 +5778,7 @@
         }
 
         function deleteItem() {
+          if (!securityCheck()) return;
             const item = allItems.find(i => i.id === activeItemId);
             if (!item) return;
         
@@ -5198,6 +5879,7 @@
         }
 
         async function editStock(itemId, itemName, currentStock) {
+          if (!securityCheck()) return;
             const item = allItems.find(i => i.id === itemId);
             if (!item) return;
         
@@ -5474,6 +6156,7 @@
             renderInventoryPage();
         }
         async function editSectionName(sectionId, oldName) {
+          if (!securityCheck()) return;
             const pinVerified = await requestPinAndExecute();
             if (!pinVerified) return;
         
@@ -5524,6 +6207,7 @@
         }
         
         function addNewUser(event) {
+          if (!securityCheck()) return;
             event.preventDefault();
             const nameInput = document.getElementById('new-user-name');
             const name = nameInput.value.trim();
@@ -5559,6 +6243,7 @@
         }
 
         async function deleteSection(sectionId) {
+          if (!securityCheck()) return;
             const section = sections.find(s => s.id === sectionId);
             if (!section) return;
         
@@ -5776,6 +6461,7 @@
             return { key: key, name: key };
         }
         function saveAllItems() {
+          if (!securityCheck()) return;
             const formCards = document.querySelectorAll('#multiItemFormsContainer .item-form-card');
             if (formCards.length === 0) {
                 showToast("প্রথমে একটি আইটেম ফর্ম যোগ করুন।", 'error');
@@ -6004,6 +6690,139 @@
                 }
             }, 500);
         }
+        function openElectricianRequisitionModal() {
+            const modal = document.getElementById('electricianRequisitionModal');
+            modal.querySelector('h2').textContent = 'নতুন রিকুইজিশন আবেদন';
+            const submitBtn = document.getElementById('submit-elec-req-btn');
+            submitBtn.textContent = 'সাবমিট করুন 🚀';
+            submitBtn.onclick = submitElectricianRequisition;
+            
+            currentEditingRequisitionId = null;
+            
+            const itemsContainer = document.getElementById('elec-req-items-container');
+            itemsContainer.innerHTML = '';
+            addElecRequisitionItemForm();
+            
+            loadMyPendingRequisitions();
+            openModal('electricianRequisitionModal');
+        }
+
+        function addElecRequisitionItemForm(itemData = null) {
+            const container = document.getElementById('elec-req-items-container');
+            const formCard = document.createElement('div');
+            formCard.className = 'item-form-card';
+            formCard.innerHTML = `
+                <button class="remove-form-btn" onclick="this.parentElement.remove()">×</button>
+                <div class="custom-search-container">
+                    <input type="text" class="custom-search-input elec-req-item-search" autocomplete="off" placeholder="আইটেমের নাম লিখে খুঁজুন..." onkeyup="filterItems(this)" onfocus="filterItems(this, true)">
+                    <div class="custom-search-results"></div>
+                </div>
+                <input type="hidden" class="selected-item-id">
+                
+                <div class="pi-quantity-single" style="display: none;">
+                    <input type="number" class="elec-req-quantity-single" placeholder="পরিমাণ" min="0" step="any" required>
+                    <div class="quantity-feedback"></div>
+                </div>
+                
+                <div class="pi-quantity-dynamic" style="display: none;"></div>
+            `;
+            container.appendChild(formCard);
+            
+            const newInput = formCard.querySelector('.custom-search-input');
+            
+            if (itemData) {
+                const item = allItems.find(i => i.id === itemData.itemId);
+                if (item) {
+                    selectItem(newInput, item);
+                    
+                    setTimeout(() => {
+                        if (itemData.details) {
+                            for (const key in itemData.details) {
+                                const input = formCard.querySelector(`.pi-variant-quantity[data-variant-key="${key}"]`);
+                                if (input) input.value = itemData.details[key];
+                            }
+                        } else {
+                            const input = formCard.querySelector('.elec-req-quantity-single');
+                            if (input) input.value = itemData.quantity;
+                        }
+                    }, 100);
+                }
+            } else {
+                setTimeout(() => {
+                    newInput.focus();
+                    filterItems(newInput, true);
+                }, 100);
+            }
+        }
+
+        async function submitElectricianRequisition() {
+            const itemForms = document.querySelectorAll('#elec-req-items-container .item-form-card');
+            if (itemForms.length === 0) {
+                return showToast('অনুগ্রহ করে অন্তত একটি আইটেম যোগ করুন।', 'error');
+            }
+        
+            const itemsToRequisition = [];
+            for (const form of itemForms) {
+                const itemId = form.querySelector('.selected-item-id').value;
+                const item = allItems.find(i => i.id === itemId);
+        
+                if (!item) continue;
+        
+                const isVariant = Array.isArray(item.quantity);
+                let requisitionDetails = {};
+                let totalQuantity = 0;
+        
+                if (isVariant) {
+                    const variantInputs = form.querySelectorAll('.pi-variant-quantity');
+                    variantInputs.forEach(input => {
+                        const quantity = parseFloat(input.value) || 0;
+                        if (quantity > 0) {
+                            requisitionDetails[input.dataset.variantKey] = quantity;
+                            totalQuantity += quantity;
+                        }
+                    });
+                } else {
+                    const singleInput = form.querySelector('.elec-req-quantity-single');
+                    totalQuantity = parseFloat(singleInput.value) || 0;
+                }
+        
+                if (totalQuantity > 0) {
+                    itemsToRequisition.push({
+                        itemId: item.id,
+                        itemName: item.name,
+                        quantity: totalQuantity,
+                        unit: item.unit || 'পিস',
+                        details: isVariant ? requisitionDetails : null
+                    });
+                }
+            }
+        
+            if (itemsToRequisition.length === 0) {
+                return showToast('চাহিদার পরিমাণসহ অন্তত একটি আইটেম সঠিকভাবে পূরণ করুন।', 'error');
+            }
+        
+            const requisitionData = {
+                requesterId: currentUser.uid,
+                requesterName: users.find(u => u.id === currentUser.uid)?.name || currentUser.email,
+                items: itemsToRequisition,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            };
+        
+            try {
+                const dbPath = getDbPath();
+                if (!dbPath) throw new Error("ডেটাবেস পাথ পাওয়া যায়নি।");
+        
+                await dbPath.collection('requisitions').add(requisitionData);
+                
+                showToast('আপনার রিকুইজিশন সফলভাবে সাবমিট করা হয়েছে।', 'success');
+                closeModal('electricianRequisitionModal');
+        
+            } catch (error) {
+                console.error("Requisition submission failed:", error);
+                showToast('রিকুইজিশন সাবমিট করতে সমস্যা হয়েছে।', 'error');
+            }
+        }
 
         function addProvideItemForm() {
             const container = document.getElementById('provide-items-container');
@@ -6138,6 +6957,7 @@
         }
 
         async function executeProvideAllItems() {
+          if (!securityCheck()) return;
             const personName = document.getElementById('pi-user-main').value;
             const isUrgent = document.getElementById('pi-is-urgent-main').checked;
             const requisitionValue = document.getElementById('pi-requisition-id').value.trim();
@@ -6760,6 +7580,7 @@
         }
 
         async function clearAllUserTransactions(userId) {
+          if (!securityCheck()) return;
             const user = users.find(u => u.id === userId);
             if (!user) return;
         
@@ -6806,6 +7627,7 @@
         }
 
         async function deleteSingleUserTransaction(ledgerId, userId) {
+          if (!securityCheck()) return;
             const entryIndex = ledger.findIndex(e => e.id === ledgerId);
             if (entryIndex === -1) return;
         
@@ -7547,17 +8369,36 @@
             document.getElementById('main-app-wrapper').style.filter = 'none';
             document.getElementById('main-app-wrapper').style.pointerEvents = 'auto';
         
-            offlineDB.init(); 
+            offlineDB.init();
         
             if (currentUser && getDbPath()) {
+                const role = getUserRole(currentUser.uid);
+                const adminBar = document.getElementById('admin-action-bar');
+                const electricianBar = document.getElementById('electrician-action-bar');
+                const managementBar = document.getElementById('management-action-bar');
+        
+                if (role === 'electrician') {
+                    document.body.classList.add('read-only-mode');
+                    adminBar.style.display = 'none';
+                    managementBar.style.display = 'none';
+                    electricianBar.style.display = 'flex';
+                    showToast('আপনি শুধুমাত্র দেখার অনুমতিপ্রাপ্ত।', 'warning');
+                } else {
+                    document.body.classList.remove('read-only-mode');
+                    adminBar.style.display = 'flex';
+                    managementBar.style.display = 'flex';
+                    electricianBar.style.display = 'none';
+                }
+        
                 const syncStatusEl = document.getElementById('sync-status');
                 syncStatusEl.textContent = 'সিঙ্ক হচ্ছে...';
                 syncStatusEl.className = 'sync-status-indicator syncing';
                 listenForLiveUpdates();
                 runPrediction();
+                updatePendingReqBadge();
             }
         }
-        
+
         function showLogin() {
             document.getElementById('main-app-wrapper').style.display = 'block';
             document.documentElement.style.overflow = 'hidden';
@@ -8126,25 +8967,39 @@
             formCard.querySelector('.selected-item-id').value = item.id;
             formCard.querySelector('.custom-search-results').classList.remove('show');
         
+            const isElectricianForm = input.classList.contains('elec-req-item-search');
             const isVariant = Array.isArray(item.quantity);
             const dynamicInputContainer = formCard.querySelector('.pi-quantity-dynamic');
-            const singleInput = formCard.querySelector('.pi-quantity-single');
+                
+            let singleInputContainer;
+            let singleQuantityInput;
+        
+            if (isElectricianForm) {
+                singleInputContainer = formCard.querySelector('.pi-quantity-single');
+                singleQuantityInput = singleInputContainer.querySelector('input');
+            } else {
+                singleInputContainer = formCard.querySelector('.pi-quantity-single');
+                singleQuantityInput = singleInputContainer; 
+            }
+        
+            dynamicInputContainer.innerHTML = '';
+            dynamicInputContainer.style.display = 'none';
+            singleInputContainer.style.display = 'none';
+            if(singleQuantityInput) {
+                singleQuantityInput.value = '';
+            }
         
             if (isVariant) {
-                singleInput.style.display = 'none';
-                singleInput.value = '';
-        
                 const colors = { 'R': '#e4000f', 'Y': '#ffc107', 'B': '#007bff', 'BK': '#343a40', 'G': '#28a745' };
                 const textColors = { 'Y': '#000000' };
-                
+                    
                 let variantHTML = '<div class="variant-inputs" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; margin-top: 8px;">';
                 item.quantity.forEach(variant => {
                     const stock = variant.value;
                     const variantKey = variant.key;
-                    
                     const bgColor = colors[variantKey.toUpperCase()] || '#6c757d';
                     const textColor = textColors[variantKey.toUpperCase()] || '#ffffff';
-        
+            
                     variantHTML += `
                         <div style="text-align: center;">
                             <div style="border: 1px solid #ddd; border-radius: 6px; padding: 5px; background: #f8f9fa;">
@@ -8156,32 +9011,36 @@
                     `;
                 });
                 variantHTML += '</div>';
-                
+                    
                 dynamicInputContainer.innerHTML = variantHTML;
                 dynamicInputContainer.style.display = 'block';
-                
-                dynamicInputContainer.querySelectorAll('input.pi-variant-quantity').forEach(input => validateStockOnInput(input));
-        
+                    
+                dynamicInputContainer.querySelectorAll('input.pi-variant-quantity').forEach(inp => validateStockOnInput(inp));
+            
             } else {
-                dynamicInputContainer.style.display = 'none';
-                dynamicInputContainer.innerHTML = '';
-                
-                singleInput.style.display = 'block';
-                
-                let feedbackDiv = singleInput.nextElementSibling;
-                if (!feedbackDiv || !feedbackDiv.classList.contains('quantity-feedback')) {
-                    feedbackDiv = document.createElement('div');
-                    feedbackDiv.className = 'quantity-feedback';
-                    singleInput.parentElement.insertBefore(feedbackDiv, singleInput.nextSibling);
+                singleInputContainer.style.display = 'block';
+                    
+                if (!isElectricianForm) {
+                    let feedbackDiv = singleQuantityInput.nextElementSibling;
+                    if (!feedbackDiv || !feedbackDiv.classList.contains('quantity-feedback')) {
+                        feedbackDiv = document.createElement('div');
+                        feedbackDiv.className = 'quantity-feedback';
+                        singleQuantityInput.parentElement.insertBefore(feedbackDiv, singleQuantityInput.nextSibling);
+                    }
                 }
-                
-                validateStockOnInput(singleInput);
-                singleInput.focus();
+                    
+                singleQuantityInput.setAttribute('oninput', 'validateStockOnInput(this)');
+                singleQuantityInput.setAttribute('max', item.quantity);
+                validateStockOnInput(singleQuantityInput);
+                    
+                singleQuantityInput.focus();
             }
         
-            const modal = document.getElementById('provideItemModal');
-            modal.classList.remove('modal-expanded');
-            modal.classList.add('modal-compact');
+            const provideItemModal = document.getElementById('provideItemModal');
+            if (provideItemModal && provideItemModal.contains(formCard)) {
+                provideItemModal.classList.remove('modal-expanded');
+                provideItemModal.classList.add('modal-compact');
+            }
         }
 
         // --- Initial Load ---
