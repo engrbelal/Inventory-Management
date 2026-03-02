@@ -8408,7 +8408,53 @@
         function openManualModal() {
             openModal('manualModal');
         }
-      
+
+        function listenForNewRequisitions() {
+            const dbPath = getDbPath();
+            if (!dbPath || !currentUser || getUserRole(currentUser.uid) === 'electrician') {
+                return;
+            }
+        
+            let lastNotificationTime = 0;
+        
+            dbPath.collection('requisitions')
+                .where('status', '==', 'pending')
+                .onSnapshot(snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            const requisition = change.doc.data();
+                            const now = Date.now();
+        
+                            if (now - lastNotificationTime > 5000) {
+                                lastNotificationTime = now;
+        
+                                const requesterName = requisition.requesterName || 'একজন ব্যবহারকারী';
+                                const message = `${requesterName} একটি নতুন রিকুইজিশন আবেদন করেছেন।`;
+        
+                                showToast(message, 'warning');
+        
+                                try {
+                                    const notificationSound = new Audio('https://cdn.jsdelivr.net/gh/k-fakhritdinov/notifications-sounds/public/sounds/goes-without-saying-608.mp3');
+                                    notificationSound.play().catch(e => console.warn("সাউন্ড প্লে করা যায়নি।"));
+                                } catch(e) {
+                                    console.error("সাউন্ড প্লে করতে সমস্যা হয়েছে:", e);
+                                }
+        
+                                if (document.hidden) {
+                                    document.title = "🔔 নতুন রিকুইজিশন!";
+                                }
+                            }
+                        }
+                    });
+                });
+            
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    document.title = 'ইনভেন্টরি ম্যানেজমেন্ট সিস্টেম';
+                }
+            });
+        }
+              
         function showApp() {
             document.getElementById('main-app-wrapper').style.display = 'block';
             document.documentElement.style.overflow = '';
@@ -8444,6 +8490,7 @@
                 listenForLiveUpdates();
                 runPrediction();
                 updatePendingReqBadge();
+                listenForNewRequisitions();
             }
         }
 
