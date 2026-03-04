@@ -1068,10 +1068,12 @@
         #electricianRequisitionModal .modal-footer {
             flex-wrap: nowrap; /* বাটনগুলোকে নিচে নামতে বাধা দেবে */
         }                
-#management-action-bar .action-btn {
-    font-size: 12px;
-}
-        
+        #management-action-bar .action-btn {
+            font-size: 12px;
+        }
+        #custom-prompt-modal {
+            z-index: 1055; /* এই মানটি অন্য মডালগুলোর চেয়ে বেশি */
+        }        
     </style>
 </head>
 <body>
@@ -1136,8 +1138,9 @@
          
         <header class="header">     <h1>ইনভেন্টরি ম্যানেজমেন্ট</h1>     <div id="sync-status" class="sync-status-indicator"></div> </header>
         <nav class="main-nav">
-            <div class="nav-tab active" onclick="showPage('inventory')">ইনভেন্টরি</div>
-            <div class="nav-tab" onclick="showPage('reports')">রিপোর্ট ও সেটিংস</div>
+            <div class="nav-tab active" id="inventory-nav-tab" onclick="showPage('inventory')">ইনভেন্টরি</div>
+            <div id="reports-nav-tab" class="nav-tab" onclick="showPage('reports')" style="display: none;">রিপোর্ট ও সেটিংস</div>
+            <div id="profile-nav-tab" class="nav-tab" onclick="showPage('profile')" style="display: none;">আমার প্রোফাইল</div>
         </nav>
     
         <!-- Inventory Page -->
@@ -1311,6 +1314,24 @@
                 </div>           
                 <div class="card">
                     <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
+                        <h2>রিকুইজিশন বাটন সেটিংস</h2>
+                        <span class="toggle-icon collapsed">▼</span>
+                    </div>
+                    <div class="card-body collapsible collapsed" style="padding-bottom: 15px;">
+                        <p>এই অপশনটি চালু করলে অ্যাডমিন প্যানেলে "ডিজিটাল রিকুইজিশন আবেদন" বাটনটি দেখা যাবে।</p>
+                        <div class="form-group" style="padding: 10px; box-shadow: none; background: #f8f9fa;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label for="admin-req-btn-toggle" style="font-weight: 600; cursor: pointer;">অ্যাডমিন প্যানেলে বাটন দেখান</label>
+                                <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                                    <input type="checkbox" id="admin-req-btn-toggle" onchange="handleRequisitionButtonToggle()">
+                                    <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px;"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
                         <h2>স্টক পূর্বাভাস সেটিংস</h2>
                         <span class="toggle-icon collapsed">▼</span>
                     </div>
@@ -1352,6 +1373,35 @@
                     </button>
                 </div>
         
+            </div>
+        </div>
+        <div id="profile-page" class="page">
+            <div class="container">
+                <div class="card">
+                    <h2 id="profile-welcome-message"></h2>
+                </div>
+        
+                <div class="card">
+                    <h2>চলতি মাসের সারাংশ</h2>
+                    <div id="profile-current-month-summary">
+                        <p>লোড হচ্ছে...</p>
+                    </div>
+                </div>
+        
+                <div class="card">
+                    <h2>গত মাসের সারাংশ</h2>
+                    <div id="profile-previous-month-summary">
+                        <p>লোড হচ্ছে...</p>
+                    </div>
+                </div>
+        
+                <div class="card">
+                    <h2>সাম্প্রতিক লেনদেন</h2>
+                    <div id="profile-recent-transactions" class="table-container">
+                        <p>লোড হচ্ছে...</p>
+                    </div>
+                    <button id="profile-load-more-btn" class="more-btn" style="display: none;">আরও দেখুন</button>
+                </div>
             </div>
         </div>
 
@@ -2291,20 +2341,48 @@
             }
         };
 
-        function showCustomPrompt({ title, message, defaultValue, step = 'any' }) {
+        function showCustomPrompt({ title, message, defaultValue, step = 'any', validation = null, onInput = null }) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('custom-prompt-modal');
                 const titleEl = document.getElementById('custom-prompt-title');
                 const messageEl = document.getElementById('custom-prompt-message');
                 const inputEl = document.getElementById('custom-prompt-input');
-                inputEl.setAttribute('autocomplete', 'off');
                 const okBtn = document.getElementById('custom-prompt-ok');
                 const cancelBtn = document.getElementById('custom-prompt-cancel');
+        
+                const formGroup = inputEl.parentElement;
+                formGroup.style.position = 'relative';
+        
+                let statusContainer = document.getElementById('custom-prompt-status-container');
+                if (!statusContainer) {
+                    statusContainer = document.createElement('div');
+                    statusContainer.id = 'custom-prompt-status-container';
+                    statusContainer.style.position = 'absolute';
+                    statusContainer.style.top = '100%';
+                    statusContainer.style.left = '0';
+                    statusContainer.style.width = '100%';
+                    statusContainer.style.marginTop = '2px';
+                    formGroup.appendChild(statusContainer);
+                }
+        
+                let searchResultContainer = document.getElementById('custom-prompt-search-result');
+                if (!searchResultContainer) {
+                    searchResultContainer = document.createElement('div');
+                    searchResultContainer.id = 'custom-prompt-search-result';
+                    searchResultContainer.style.marginTop = '20px';
+                    formGroup.appendChild(searchResultContainer);
+                }
+        
+                statusContainer.innerHTML = '';
+                searchResultContainer.innerHTML = '';
+                inputEl.className = '';
+                inputEl.style.paddingRight = '10px';
         
                 titleEl.textContent = title;
                 messageEl.textContent = message;
                 inputEl.value = defaultValue;
-                inputEl.step = step; // নতুন যুক্ত করা লাইন
+                inputEl.step = step;
+                inputEl.setAttribute('autocomplete', 'off');
         
                 openModal('custom-prompt-modal');
                 
@@ -2314,8 +2392,18 @@
                 }, 100);
         
                 const handleOk = () => {
+                    const value = inputEl.value;
+                    if (validation) {
+                        const validationResult = validation(value);
+                        if (validationResult !== true) {
+                            statusContainer.innerHTML = `<p style="color: var(--danger-color); margin:0; font-weight: 500;">${validationResult}</p>`;
+                            inputEl.classList.add('shake-error');
+                            setTimeout(() => inputEl.classList.remove('shake-error'), 500);
+                            return;
+                        }
+                    }
                     cleanup();
-                    resolve(inputEl.value);
+                    resolve(value);
                 };
         
                 const handleCancel = () => {
@@ -2324,8 +2412,12 @@
                 };
         
                 const handleEnter = (event) => {
-                    if (event.key === 'Enter') {
-                        handleOk();
+                    if (event.key === 'Enter') handleOk();
+                };
+        
+                const handleInput = (event) => {
+                    if (onInput) {
+                        onInput(event.target.value, statusContainer, searchResultContainer, inputEl);
                     }
                 };
         
@@ -2334,11 +2426,13 @@
                     okBtn.removeEventListener('click', handleOk);
                     cancelBtn.removeEventListener('click', handleCancel);
                     inputEl.removeEventListener('keydown', handleEnter);
+                    inputEl.removeEventListener('input', handleInput);
                 };
         
                 okBtn.addEventListener('click', handleOk);
                 cancelBtn.addEventListener('click', handleCancel);
                 inputEl.addEventListener('keydown', handleEnter);
+                inputEl.addEventListener('input', handleInput);
             });
         }
 
@@ -2929,17 +3023,229 @@
             }
         }
 
+        async function openUserClearanceModal(reqId) {
+            const dbPath = getDbPath();
+            if (!dbPath) return showToast('ডেটাবেস সংযোগ পাওয়া যায়নি।', 'error');
+        
+            const reqDoc = await dbPath.collection('requisitions').doc(reqId).get();
+            if (!reqDoc.exists) return showToast('আবেদনটি খুঁজে পাওয়া যায়নি।', 'error');
+            
+            const req = reqDoc.data();
+            let debounceTimer;
+        
+            const requisitionNumber = await showCustomPrompt({
+                title: `আবেদন ক্লিয়ার করুন`,
+                message: `"${new Date(req.createdAt).toLocaleDateString('bn-BD')}" তারিখের আবেদনের জন্য পাশ হওয়া রিকুইজিশন নম্বরটি দিন:`,
+                defaultValue: '',
+                step: '1',
+                validation: (value) => {
+                    if (!value.trim()) return 'নম্বর দিন।';
+                    if (isNaN(parseInt(value.trim(), 10))) return 'সঠিক নম্বর দিন।';
+                    return true;
+                },
+                onInput: (value, statusContainer, searchResultContainer, inputEl) => {
+                    clearTimeout(debounceTimer);
+                    statusContainer.innerHTML = '';
+                    searchResultContainer.innerHTML = '';
+                    inputEl.style.borderColor = '';
+                    inputEl.style.boxShadow = '';
+        
+                    if (!value.trim()) return;
+        
+                    debounceTimer = setTimeout(() => {
+                        const reqNum = parseInt(value.trim(), 10);
+                        if (isNaN(reqNum)) return;
+        
+                        const isExisting = ledger.some(entry => entry.requisitionId === reqNum);
+                        
+                        if (isExisting) {
+                            inputEl.style.borderColor = 'var(--danger-color)';
+                            inputEl.style.boxShadow = '0 0 0 2px rgba(220, 53, 69, 0.25)';
+                            statusContainer.innerHTML = `
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: var(--danger-color); font-weight: 500;">নম্বরটি ব্যবহৃত হয়েছে।</span>
+                                    <button onclick="searchRequisitionInPrompt(${reqNum})" style="padding: 2px 8px; font-size: 11px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">দেখুন 🔍</button>
+                                </div>
+                            `;
+                        } else {
+                            inputEl.style.borderColor = 'var(--success-color)';
+                            inputEl.style.boxShadow = '0 0 0 2px rgba(40, 167, 69, 0.25)';
+                            statusContainer.innerHTML = `<span style="color: var(--success-color); font-weight: 500;">নম্বরটি উপলব্ধ।</span>`;
+                        }
+                    }, 500);
+                }
+            });
+        
+            if (requisitionNumber === null) return;
+        
+            const reqIdNum = parseInt(requisitionNumber.trim(), 10);
+            const isExisting = ledger.some(entry => entry.requisitionId === reqIdNum);
+            if (isExisting) {
+                return showToast(`এই রিকুইজিশন নম্বরটি (${toBengaliNumber(reqIdNum)}) ইতোমধ্যে ব্যবহৃত হয়েছে।`, 'error');
+            }
+        
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            executeUserClearance(reqId, reqIdNum);
+        }
+
+        async function executeUserClearance(digitalReqId, physicalReqId) {
+            const dbPath = getDbPath();
+            if (!dbPath) return showToast('ডেটাবেস সংযোগ পাওয়া যায়নি।', 'error');
+        
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const reqRef = dbPath.collection('requisitions').doc(digitalReqId);
+                    const reqDoc = await transaction.get(reqRef);
+        
+                    if (!reqDoc.exists) {
+                        throw new Error("রিকুইজিশনটি খুঁজে পাওয়া যায়নি।");
+                    }
+        
+                    const requisitionData = reqDoc.data();
+                    const itemsToProcess = requisitionData.items;
+        
+                    for (const reqItem of itemsToProcess) {
+                        const itemRef = dbPath.collection('items').doc(reqItem.itemId);
+                        const itemDoc = await transaction.get(itemRef);
+        
+                        if (!itemDoc.exists) {
+                            throw new Error(`আইটেম '${reqItem.itemName}' খুঁজে পাওয়া যায়নি।`);
+                        }
+        
+                        const currentItem = itemDoc.data();
+                        const isVariant = Array.isArray(currentItem.quantity);
+        
+                        if (isVariant) {
+                            const newQuantityArray = [...currentItem.quantity];
+                            for (const key in reqItem.details) {
+                                const variantIndex = newQuantityArray.findIndex(v => v.key === key);
+                                if (variantIndex === -1 || newQuantityArray[variantIndex].value < reqItem.details[key]) {
+                                    throw new Error(`'${reqItem.itemName}' (${key}) এর অপর্যাপ্ত স্টক।`);
+                                }
+                                newQuantityArray[variantIndex].value -= reqItem.details[key];
+                            }
+                            transaction.set(itemRef, { 
+                                ...currentItem, 
+                                quantity: newQuantityArray, 
+                                clearingReqId: digitalReqId 
+                            });
+                        } else {
+                            if (currentItem.quantity < reqItem.quantity) {
+                                throw new Error(`'${reqItem.itemName}' এর অপর্যাপ্ত স্টক।`);
+                            }
+                            transaction.set(itemRef, { 
+                                ...currentItem, 
+                                quantity: currentItem.quantity - reqItem.quantity, 
+                                clearingReqId: digitalReqId 
+                            });
+                        }
+        
+                        const ledgerRef = dbPath.collection('ledger').doc();
+                        transaction.set(ledgerRef, {
+                            itemId: reqItem.itemId,
+                            itemName: reqItem.itemName,
+                            change: -reqItem.quantity,
+                            person: requisitionData.requesterName,
+                            date: new Date().toISOString(),
+                            isUrgent: false,
+                            requisitionId: physicalReqId,
+                            details: reqItem.details,
+                            variantOrder: reqItem.details ? Object.keys(reqItem.details) : null,
+                            clearingReqId: digitalReqId
+                        });
+                    }
+        
+                    transaction.update(reqRef, {
+                        status: 'approved',
+                        approvalRequisitionId: physicalReqId,
+                        approvedAt: new Date().toISOString()
+                    });
+                });
+        
+                showToast('আবেদনটি সফলভাবে ক্লিয়ার এবং স্টক আপডেট করা হয়েছে।', 'success');
+                loadMyPendingRequisitions();
+        
+            } catch (error) {
+                console.error("User clearance failed:", error);
+                showToast(error.message || 'আবেদনটি ক্লিয়ার করতে সমস্যা হয়েছে।', 'error');
+            }
+        }
+
+        function searchRequisitionInPrompt(reqId) {
+            const resultContainer = document.getElementById('custom-prompt-search-result');
+            if (!resultContainer) return;
+        
+            const entries = ledger.filter(entry => entry.requisitionId === reqId);
+            if (entries.length === 0) {
+                resultContainer.innerHTML = `<p>কোনো তথ্য পাওয়া যায়নি।</p>`;
+                return;
+            }
+        
+            const firstEntry = entries[0];
+            const person = firstEntry.person;
+            const date = new Date(firstEntry.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long' });
+        
+            let itemsHTML = entries.map(entry => {
+                const unit = allItems.find(i => i.id === entry.itemId)?.unit || 'পিস';
+                return `<li style="font-size: 12px;">${entry.itemName} - <strong>${toBengaliNumber(Math.abs(entry.change))} ${unit}</strong></li>`;
+            }).join('');
+        
+            resultContainer.innerHTML = `
+                <div style="background: #eef; border-left: 4px solid #0056b3; padding: 8px; border-radius: 6px;">
+                    <p style="margin: 0 0 5px 0; font-size: 13px;"><strong>কর্মচারী:</strong> ${person} (${date})</p>
+                    <ul style="margin: 0; padding-left: 18px;">${itemsHTML}</ul>
+                </div>
+            `;
+        }
+
+        function handleRequisitionButtonToggle() {
+            const isEnabled = document.getElementById('admin-req-btn-toggle').checked;
+            localStorage.setItem('showAdminRequisitionButton', isEnabled);
+        
+            const requisitionBar = document.getElementById('electrician-action-bar');
+            if (requisitionBar && getUserRole(currentUser?.uid) === 'admin') {
+                if (isEnabled) {
+                    requisitionBar.style.display = 'flex';
+                } else {
+                    requisitionBar.style.display = 'none';
+                }
+            }
+        
+            showToast(isEnabled ? 'অ্যাডমিন রিকুইজিশন বাটন চালু করা হয়েছে।' : 'অ্যাডমিন রিকুইজিশন বাটন বন্ধ করা হয়েছে।', 'success');
+        }
+
+        function loadAdminRequisitionButtonSetting() {
+            const isEnabled = localStorage.getItem('showAdminRequisitionButton') === 'true';
+            const toggleSwitch = document.getElementById('admin-req-btn-toggle');
+            const requisitionBar = document.getElementById('electrician-action-bar');
+        
+            if (toggleSwitch) {
+                toggleSwitch.checked = isEnabled;
+            }
+            
+            if (requisitionBar && getUserRole(currentUser?.uid) === 'admin') {
+                if (isEnabled) {
+                    requisitionBar.style.display = 'flex';
+                } else {
+                    requisitionBar.style.display = 'none';
+                }
+            }
+        }
+
         // --- Page Navigation ---
         function showPage(pageId) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
             document.getElementById(`${pageId}-page`).classList.add('active');
             event.currentTarget.classList.add('active');
-            // --- নতুন লাইন এখানে যুক্ত করুন ---
+            
             if (pageId === 'inventory') {
                 runPrediction();
+            } else if (pageId === 'profile') {
+                renderProfilePage();
             }
-            // --- নতুন লাইন শেষ ---          
         }
 
         // --- Render Functions ---
@@ -4787,7 +5093,7 @@
                 }
                 
                 container.style.display = 'block';
-                let html = '<h4 style="font-size: 13px; margin: 10px 0 5px 0; color: #333;">আপনার পেন্ডিং আবেদন:</h4>';
+                let html = '<h4 style="font-size: 13px; margin: 10px 0 5px 0; color: #333;">আপনার পেন্ডিং আবেদন (ক্লিয়ার করতে ক্লিক করুন):</h4>';
                 
                 snapshot.docs.forEach(doc => {
                     const req = { id: doc.id, ...doc.data() };
@@ -4812,12 +5118,12 @@
                     }).join('');
         
                     html += `
-                        <div class="card" style="margin-bottom: 10px; box-shadow: none; border: 1px solid #ddd;">
+                        <div class="card" onclick="openUserClearanceModal('${req.id}')" style="margin-bottom: 10px; box-shadow: none; border: 1px solid #ddd; cursor: pointer; transition: all 0.2s ease;">
                             <div class="card-header" style="padding: 8px 12px; background-color: #f8f9fa; justify-content: space-between;">
                                 <h3 style="margin:0; font-size: 13px; font-weight: 600;">${date}</h3>
                                 <div style="display: flex; gap: 10px; align-items: center;">
-                                    <button onclick="deleteMyRequisition('${req.id}')" style="background:none; border:none; cursor:pointer; padding:0; font-size: 14px; color: var(--danger-color);">🗑️</button>
-                                    <button onclick="openEditRequisitionModal('${req.id}')" style="background:none; border:none; cursor:pointer; padding:0; font-size: 14px; color: #007bff;">✏️</button>
+                                    <button onclick="event.stopPropagation(); deleteMyRequisition('${req.id}')" style="background:none; border:none; cursor:pointer; padding:0; font-size: 14px; color: var(--danger-color);">🗑️</button>
+                                    <button onclick="event.stopPropagation(); openEditRequisitionModal('${req.id}')" style="background:none; border:none; cursor:pointer; padding:0; font-size: 14px; color: #007bff;">✏️</button>
                                 </div>
                             </div>
                             <div style="padding: 8px 12px;">
@@ -7179,6 +7485,170 @@
             }
         }
 
+        function renderProfilePage() {
+            if (!currentUser) return;
+        
+            const userName = users.find(u => u.id === currentUser.uid)?.name || currentUser.email.split('@')[0];
+            document.getElementById('profile-welcome-message').textContent = `স্বাগতম, ${userName}!`;
+        
+            const userLedger = ledger.filter(l => l.person === userName && l.change < 0)
+                                     .sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            const previousMonth = (currentMonth === 0) ? 11 : currentMonth - 1;
+            const previousMonthYear = (currentMonth === 0) ? currentYear - 1 : currentYear;
+        
+            const currentMonthEntries = userLedger.filter(e => {
+                const date = new Date(e.date);
+                return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+            });
+        
+            const previousMonthEntries = userLedger.filter(e => {
+                const date = new Date(e.date);
+                return date.getMonth() === previousMonth && date.getFullYear() === previousMonthYear;
+            });
+        
+            renderSummaryCard('profile-current-month-summary', currentMonthEntries);
+            renderSummaryCard('profile-previous-month-summary', previousMonthEntries);
+            renderTransactionList(userLedger);
+        }
+        
+        function renderSummaryCard(elementId, entries) {
+            const container = document.getElementById(elementId);
+            if (entries.length === 0) {
+                container.innerHTML = '<p>এই মাসে কোনো লেনদেন হয়নি।</p>';
+                return;
+            }
+        
+            const totalItemsTaken = entries.reduce((sum, entry) => sum + Math.abs(entry.change), 0);
+            
+            const itemCounts = entries.reduce((acc, entry) => {
+                if (!acc[entry.itemId]) {
+                    acc[entry.itemId] = { 
+                        name: entry.itemName, 
+                        total: 0, 
+                        details: {},
+                        variantOrder: entry.variantOrder 
+                    };
+                }
+                
+                acc[entry.itemId].total += Math.abs(entry.change);
+        
+                if (entry.details && typeof entry.details === 'object') {
+                    for (const key in entry.details) {
+                        acc[entry.itemId].details[key] = (acc[entry.itemId].details[key] || 0) + Math.abs(entry.details[key]);
+                    }
+                }
+                return acc;
+            }, {});
+        
+            const topItems = Object.values(itemCounts)
+                .sort((a, b) => b.total - a.total)
+                .slice(0, 3);
+        
+            let topItemsHTML = topItems.map(item => {
+                let detailsHTML = '';
+                if (Object.keys(item.details).length > 0) {
+                    const originalItem = allItems.find(i => i.name === item.name);
+                    const variantOrder = item.variantOrder || (originalItem && Array.isArray(originalItem.quantity) ? originalItem.quantity.map(v => v.key) : Object.keys(item.details));
+                    
+                    const detailsParts = variantOrder
+                        .filter(key => item.details[key] !== undefined)
+                        .map(key => `${key}: ${toBengaliNumber(item.details[key])}`);
+        
+                    if (detailsParts.length > 0) {
+                        detailsHTML = ` <small style="color: #0056b3; font-weight: 500;">(${detailsParts.join(', ')})</small>`;
+                    }
+                }
+                return `<li>${item.name}${detailsHTML} (${toBengaliNumber(item.total)} টি)</li>`;
+            }).join('');
+        
+            container.innerHTML = `
+                <p><strong>মোট গৃহীত আইটেম:</strong> ${toBengaliNumber(totalItemsTaken)} টি</p>
+                <strong>সবচেয়ে বেশি ব্যবহৃত:</strong>
+                <ul style="margin-top: 5px; padding-left: 20px;">${topItemsHTML}</ul>
+            `;
+        }
+
+        function renderTransactionList(entries) {
+            const container = document.getElementById('profile-recent-transactions');
+            const loadMoreBtn = document.getElementById('profile-load-more-btn');
+            let displayCount = 10;
+        
+            const render = () => {
+                if (entries.length === 0) {
+                    container.innerHTML = '<p>আপনার কোনো লেনদেনের রেকর্ড পাওয়া যায়নি।</p>';
+                    loadMoreBtn.style.display = 'none';
+                    return;
+                }
+        
+                const toDisplay = entries.slice(0, displayCount);
+                let tableHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>তারিখ</th>
+                                <th>আইটেমের নাম</th>
+                                <th style="text-align: right;">পরিমাণ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${toDisplay.map(entry => {
+                                let detailsHTML = '';
+                                if (entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0) {
+                                    const originalItem = allItems.find(i => i.id === entry.itemId);
+                                    let variantOrder = entry.variantOrder || (originalItem && Array.isArray(originalItem.quantity) ? originalItem.quantity.map(v => v.key) : Object.keys(entry.details));
+                                    
+                                    const detailsParts = variantOrder
+                                        .filter(key => entry.details[key] !== undefined)
+                                        .map(key => `${key}: ${toBengaliNumber(entry.details[key])}`);
+        
+                                    if (detailsParts.length > 0) {
+                                        detailsHTML = ` <small style="color: #0056b3; font-weight: 500;">(${detailsParts.join(', ')})</small>`;
+                                    }
+                                }
+        
+                                let requisitionBadge = '';
+                                if (entry.requisitionId) {
+                                    if (entry.requisitionId.toString() === SPECIAL_CLEAR_PIN) {
+                                        requisitionBadge = ` <span style="background-color: var(--warning-color); color: var(--dark-text); padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 5px;">বিশেষ ক্লিয়ারেন্স</span>`;
+                                    } else {
+                                        requisitionBadge = ` <span onclick="showRequisitionDetails(${entry.requisitionId})" style="background-color: #e9ecef; color: #495057; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px; cursor: pointer;">#${toBengaliNumber(entry.requisitionId)}</span>`;
+                                    }
+                                } else if (entry.isUrgent) {
+                                    requisitionBadge = ` <span style="background-color: var(--danger-color); color: white; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 5px;">জরুরী</span>`;
+                                }
+        
+                                return `
+                                    <tr>
+                                        <td style="white-space: nowrap;">${new Date(entry.date).toLocaleDateString('bn-BD')}</td>
+                                        <td>${entry.itemName}${detailsHTML}${requisitionBadge}</td>
+                                        <td style="text-align: right;">${toBengaliNumber(Math.abs(entry.change))}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+                container.innerHTML = tableHTML;
+        
+                if (entries.length > displayCount) {
+                    loadMoreBtn.style.display = 'block';
+                } else {
+                    loadMoreBtn.style.display = 'none';
+                }
+            };
+        
+            loadMoreBtn.onclick = () => {
+                displayCount += 10;
+                render();
+            };
+        
+            render();
+        }
+
         // --- Toast Notification ---
         function showToast(message, type = 'success') {
             const container = document.getElementById('notification-container');
@@ -8470,20 +8940,27 @@
                 const adminBar = document.getElementById('admin-action-bar');
                 const electricianBar = document.getElementById('electrician-action-bar');
                 const managementBar = document.getElementById('management-action-bar');
-        
-                if (role === 'electrician') {
-                    document.body.classList.add('read-only-mode');
-                    adminBar.style.display = 'none';
-                    managementBar.style.display = 'none';
-                    electricianBar.style.display = 'flex';
-                    showToast('আপনি শুধুমাত্র দেখার অনুমতিপ্রাপ্ত।', 'warning');
-                } else {
+                const reportsTab = document.getElementById('reports-nav-tab');
+                const profileTab = document.getElementById('profile-nav-tab');
+            
+                if (role === 'admin') {
                     document.body.classList.remove('read-only-mode');
                     adminBar.style.display = 'flex';
                     managementBar.style.display = 'flex';
-                    electricianBar.style.display = 'none';
+                    reportsTab.style.display = 'flex';
+                    profileTab.style.display = 'none';
+                } else {
+                    document.body.classList.add('read-only-mode');
+                    adminBar.style.display = 'none';
+                    managementBar.style.display = 'none';
+                    electricianBar.style.display = (role === 'electrician') ? 'flex' : 'none';
+                    reportsTab.style.display = 'none';
+                    profileTab.style.display = 'flex';
+                    if (role !== 'electrician') {
+                        showToast('আপনি শুধুমাত্র দেখার অনুমতিপ্রাপ্ত।', 'warning');
+                    }
                 }
-        
+            
                 const syncStatusEl = document.getElementById('sync-status');
                 syncStatusEl.textContent = 'সিঙ্ক হচ্ছে...';
                 syncStatusEl.className = 'sync-status-indicator syncing';
@@ -8491,6 +8968,7 @@
                 runPrediction();
                 updatePendingReqBadge();
                 listenForNewRequisitions();
+                loadAdminRequisitionButtonSetting()
             }
         }
 
