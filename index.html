@@ -3106,9 +3106,13 @@
                     const requisitionData = reqDoc.data();
                     const itemsToProcess = requisitionData.items;
         
-                    for (const reqItem of itemsToProcess) {
-                        const itemRef = dbPath.collection('items').doc(reqItem.itemId);
-                        const itemDoc = await transaction.get(itemRef);
+                    const itemRefs = itemsToProcess.map(item => dbPath.collection('items').doc(item.itemId));
+                    const itemDocs = await Promise.all(itemRefs.map(ref => transaction.get(ref)));
+        
+                    for (let i = 0; i < itemsToProcess.length; i++) {
+                        const reqItem = itemsToProcess[i];
+                        const itemDoc = itemDocs[i];
+                        const itemRef = itemRefs[i];
         
                         if (!itemDoc.exists) {
                             throw new Error(`আইটেম '${reqItem.itemName}' খুঁজে পাওয়া যায়নি।`);
@@ -3118,7 +3122,7 @@
                         const isVariant = Array.isArray(currentItem.quantity);
         
                         if (isVariant) {
-                            const newQuantityArray = [...currentItem.quantity];
+                            const newQuantityArray = JSON.parse(JSON.stringify(currentItem.quantity));
                             for (const key in reqItem.details) {
                                 const variantIndex = newQuantityArray.findIndex(v => v.key === key);
                                 if (variantIndex === -1 || newQuantityArray[variantIndex].value < reqItem.details[key]) {
@@ -3126,19 +3130,17 @@
                                 }
                                 newQuantityArray[variantIndex].value -= reqItem.details[key];
                             }
-                            transaction.set(itemRef, { 
-                                ...currentItem, 
-                                quantity: newQuantityArray, 
-                                clearingReqId: digitalReqId 
+                            transaction.update(itemRef, { 
+                                quantity: newQuantityArray,
+                                clearingReqId: digitalReqId
                             });
                         } else {
                             if (currentItem.quantity < reqItem.quantity) {
                                 throw new Error(`'${reqItem.itemName}' এর অপর্যাপ্ত স্টক।`);
                             }
-                            transaction.set(itemRef, { 
-                                ...currentItem, 
-                                quantity: currentItem.quantity - reqItem.quantity, 
-                                clearingReqId: digitalReqId 
+                            transaction.update(itemRef, { 
+                                quantity: firebase.firestore.FieldValue.increment(-reqItem.quantity),
+                                clearingReqId: digitalReqId
                             });
                         }
         
