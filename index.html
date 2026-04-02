@@ -1074,6 +1074,33 @@
         #custom-prompt-modal {
             z-index: 1055; /* এই মানটি অন্য মডালগুলোর চেয়ে বেশি */
         }        
+        #electricianRequisitionModal .modal-content {
+            width: 100%;
+            max-width: 95vw;
+            height: 85vh;
+            max-height: 85vh;
+        }
+        
+        #electricianRequisitionModal .modal-body {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        
+        #electricianRequisitionModal .custom-search-results {
+            max-height: 35vh;
+            overflow-y: auto;
+            z-index: 1055;
+        }
+        
+        #my-pending-req-list {
+            flex-shrink: 0;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 10px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+                
     </style>
 </head>
 <body>
@@ -7061,6 +7088,13 @@
             
             loadMyPendingRequisitions();
             openModal('electricianRequisitionModal');
+        
+            setTimeout(() => {
+                const firstInput = modal.querySelector('.elec-req-item-search');
+                if (firstInput) {
+                    firstInput.focus();
+                }
+            }, 150);
         }
 
         function addElecRequisitionItemForm(itemData = null) {
