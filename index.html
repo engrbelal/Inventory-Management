@@ -1101,6 +1101,22 @@
             border-bottom: 1px solid #e0e0e0;
         }
                 
+        #compare-modal-body h4 {
+            font-size: 14px;
+            color: var(--primary-color);
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+        #compare-modal-body ul {
+            list-style-type: none;
+        }
+        #compare-modal-body li {
+            padding: 4px 0;
+            font-size: 13px;
+        }
+                        
     </style>
 </head>
 <body>
@@ -2064,6 +2080,82 @@
           </div>
       </div>
   </div>
+  
+  <!-- ★★★ নতুন কোড শুরু: ব্যাকআপ ও ইমপোর্ট মডাল ★★★ -->
+  
+  <!-- ব্যাকআপ অপশন মডাল -->
+  <div id="backup-choice-modal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 380px;">
+          <div class="modal-header">
+              <h2>ব্যাকআপের ধরণ বেছে নিন</h2>
+              <button class="close-btn" onclick="closeModal('backup-choice-modal')">&times;</button>
+          </div>
+          <div class="modal-body">
+              <p style="text-align: center; margin-bottom: 20px;">আপনি আপনার ডেটা কোথায় সংরক্ষণ করতে চান?</p>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                  <button id="backup-to-phone-btn" class="action-btn" style="background-color: #3182CE;">
+                      📲 ফোনে সেভ করুন (অফলাইন)
+                  </button>
+                  <button id="backup-to-online-btn" class="action-btn" style="background-color: var(--success-color);">
+                      ☁️ ডাটাবেজে সেভ করুন (অনলাইন)
+                  </button>
+              </div>
+          </div>
+      </div>
+  </div>
+  
+  <!-- ইমপোর্ট অপশন মডাল -->
+  <div id="import-choice-modal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 380px;">
+          <div class="modal-header">
+              <h2>ইমপোর্টের উৎস বেছে নিন</h2>
+              <button class="close-btn" onclick="closeModal('import-choice-modal')">&times;</button>
+          </div>
+          <div class="modal-body">
+              <p style="text-align: center; margin-bottom: 20px;">আপনি কোথা থেকে ডেটা পুনরুদ্ধার করতে চান?</p>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                  <button id="import-from-phone-btn" class="action-btn" style="background-color: #3182CE;">
+                      📁 ফোন থেকে ইমপোর্ট
+                  </button>
+                  <button id="import-from-online-btn" class="action-btn" style="background-color: var(--success-color);">
+                      🌐 অনলাইন ডাটাবেজ থেকে
+                  </button>
+              </div>
+          </div>
+      </div>
+  </div>
+  
+  <!-- অনলাইন ব্যাকআপ তালিকা এবং তুলনা মডাল -->
+  <div id="online-backup-list-modal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 700px; height: 85vh;">
+          <div class="modal-header">
+              <h2>অনলাইন ব্যাকআপ তালিকা</h2>
+              <button class="close-btn" onclick="closeModal('online-backup-list-modal')">&times;</button>
+          </div>
+          <div class="modal-body" id="online-backups-container" style="padding: 10px;">
+              <!-- ব্যাকআপ তালিকা এখানে লোড হবে -->
+          </div>
+      </div>
+  </div>
+  
+  <!-- ব্যাকআপ তুলনা (Compare) মডাল -->
+  <div id="backup-compare-modal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 800px; height: 90vh;">
+          <div class="modal-header">
+              <h2 id="compare-modal-title">ব্যাকআপের সাথে তুলনা</h2>
+              <button class="close-btn" onclick="closeModal('backup-compare-modal'); openModal('online-backup-list-modal');">&times;</button>
+          </div>
+          <div class="modal-body" id="compare-modal-body" style="padding: 15px;">
+              <!-- তুলনার ফলাফল এখানে দেখানো হবে -->
+          </div>
+          <div class="modal-footer">
+              <button id="confirm-restore-btn" class="action-btn" style="background-color: var(--danger-color); width: 100%;">এই ব্যাকআপটি রিস্টোর করুন</button>
+          </div>
+      </div>
+  </div>
+  
+  <!-- ★★★ নতুন কোড শেষ ★★★ -->
+
     <script>
         // --- Global State & Constants ---
         const firebaseConfig = {
@@ -2180,6 +2272,31 @@
             const bnNumbers = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
             return str.replace(/[0-9]/g, (w) => bnNumbers[+w]);
         };
+        function getActionTakerName() {
+            if (!currentUser) return 'অজানা';
+            const officialStoreAdminEmail = "generalstore@goldenrefit-bd.com";
+            if (currentUser.email === officialStoreAdminEmail) {
+                return 'স্টোর কিপার';
+            }
+            const userProfile = users.find(u => u.id === currentUser.uid);
+            return userProfile ? userProfile.name : currentUser.email.split('@')[0];
+        }
+        function getDeviceFingerprint() {
+            const navigatorInfo = window.navigator;
+            const screenInfo = window.screen;
+            let fingerprint = navigatorInfo.userAgent +
+                              screenInfo.height + screenInfo.width + screenInfo.colorDepth +
+                              navigatorInfo.language + navigatorInfo.hardwareConcurrency;
+            
+            let hash = 0;
+            for (let i = 0; i < fingerprint.length; i++) {
+                const char = fingerprint.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash |= 0; 
+            }
+            return 'device_' + Math.abs(hash).toString(16);
+        }
+                
         function toggleRequisitionIdField(isUrgent) {
             const requisitionGroup = document.getElementById('requisition-id-group');
             const userRequisitionGroup = document.getElementById('user-requisition-group');
@@ -2361,11 +2478,27 @@
                     }
                 }
                 
-                if (forPlainText) {
-                    return `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} নিয়েছে ${entry.person}।${detailsText}${requisitionBadge}`;
-                } else {
-                    return `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} নিয়েছে ${entry.person}${detailsText}${requisitionBadge}`;
+                let baseDescription = `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} নিয়েছে ${entry.person}${detailsText}${requisitionBadge}`;
+                
+                let actionByText = '';
+                if (entry.actionBy) {
+                    const actionTakerName = entry.actionBy;
+                    if (forPlainText) {
+                        actionByText = `। কাজটি সম্পন্ন করেছেন: ${actionTakerName}`;
+                    } else {
+                        actionByText = `। <strong style="color: #555; font-weight: 500;">সম্পন্ন করেছেন: ${actionTakerName}</strong>`;
+                    }
+                } else if (entry.person !== 'নতুন আইটেম' && entry.person !== 'সংশোধন') {
+                    const defaultActionTaker = 'স্টোর কিপার';
+                    if (forPlainText) {
+                        actionByText = `। কাজটি সম্পন্ন করেছেন: ${defaultActionTaker}`;
+                    } else {
+                        actionByText = `। <strong style="color: #555; font-weight: 500;">সম্পন্ন করেছেন: ${defaultActionTaker}</strong>`;
+                    }
                 }
+                
+                return baseDescription + actionByText;
+
             }
         };
 
@@ -5069,7 +5202,8 @@
                         isUrgent: isUrgent,
                         requisitionId: requisitionId,
                         details: reqItem.details,
-                        variantOrder: finalVariantOrder
+                        variantOrder: finalVariantOrder,
+                        actionBy: getActionTakerName()
                     });
                 }
         
@@ -7496,8 +7630,10 @@
                             isUrgent: isUrgent,
                             requisitionId: requisitionIdAsNumber,
                             details: itemData.isVariant ? itemData.providedVariants : null,
-                            variantOrder: itemData.isVariant ? itemData.variantOrder : null
+                            variantOrder: itemData.isVariant ? itemData.variantOrder : null,
+                            actionBy: getActionTakerName()
                         };
+                        transaction.set(ledgerRef, ledgerEntry);
                         transaction.set(ledgerRef, ledgerEntry);
                     }
                 });
@@ -9005,7 +9141,8 @@
                 runPrediction();
                 updatePendingReqBadge();
                 listenForNewRequisitions();
-                loadAdminRequisitionButtonSetting()
+                loadAdminRequisitionButtonSetting();
+                handleAutoBackup();
             }
         }
 
@@ -9065,7 +9202,7 @@
                 });
         }
         
-        function loginUser(event) {
+        async function loginUser(event) {
             event.preventDefault();
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
@@ -9074,19 +9211,44 @@
             loginBtn.disabled = true;
             showAuthMessage('login', 'লগইন করা হচ্ছে...');
         
-            auth.signInWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                })
-                .catch((error) => {
-                    let message = 'একটি অজানা ত্রুটি ঘটেছে।';
-                    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                        message = 'আপনার ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।';
-                    }
-                    showAuthMessage('login', message, true);
-                    loginBtn.disabled = false;
-                });
-        }
+            const officialStoreAdminEmail = "generalstore@goldenrefit-bd.com";
         
+            try {
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+        
+                if (email === officialStoreAdminEmail) {
+                    showAuthMessage('login', 'ডিভাইস ভেরিফাই করা হচ্ছে...');
+                    const userDocRef = db.collection('app_metadata').doc(user.uid);
+                    const userDoc = await userDocRef.get();
+                    const deviceFingerprint = getDeviceFingerprint();
+        
+                    if (userDoc.exists && userDoc.data().trusted_device_id) {
+                        const trustedDeviceId = userDoc.data().trusted_device_id;
+                        if (trustedDeviceId !== deviceFingerprint) {
+                            await auth.signOut();
+                            throw new Error('এই অ্যাকাউন্টটি শুধুমাত্র নির্ধারিত ডিভাইস থেকে লগইন করা যাবে।');
+                        }
+                    } else {
+                        await userDocRef.set({ trusted_device_id: deviceFingerprint });
+                        showToast('এই ডিভাইসটিকে বিশ্বস্ত হিসেবে রেজিস্টার করা হয়েছে।', 'success');
+                    }
+                }
+                
+                showAuthMessage('login', '');
+        
+            } catch (error) {
+                let message = 'একটি অজানা ত্রুটি ঘটেছে।';
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    message = 'আপনার ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।';
+                } else {
+                    message = error.message;
+                }
+                showAuthMessage('login', message, true);
+                loginBtn.disabled = false;
+            }
+        }
+
         function handleAuthClose() {
             const hasLocalData = (localStorage.getItem('sections') || '[]').length > 2;
         
@@ -9304,32 +9466,73 @@
         
         function getAllDataAsObject() {
             return {
-                version: "1.0",
+                version: "2.0",
                 exportedAt: new Date().toISOString(),
                 sections: JSON.parse(localStorage.getItem('sections') || '[]'),
                 items: JSON.parse(localStorage.getItem('items') || '[]'),
                 app_users: JSON.parse(localStorage.getItem('app_users') || '[]'),
                 ledger: JSON.parse(localStorage.getItem('ledger') || '[]'),
-                archivedReports: JSON.parse(localStorage.getItem('archivedReports') || '[]')
+                archivedReports: JSON.parse(localStorage.getItem('archivedReports') || '[]'),
+                sectionOrder: JSON.parse(localStorage.getItem('sectionOrder') || '[]'),
+                itemOrders: JSON.parse(localStorage.getItem('itemOrders') || '{}')
             };
         }
         
         function exportAllData() {
+            openModal('backup-choice-modal');
+        }
+        
+        function importAllData() {
+            openModal('import-choice-modal');
+        }
+        
+        async function executePhoneBackup() {
+            closeModal('backup-choice-modal');
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return showToast('পিন সঠিক নয় বা বাতিল করা হয়েছে।', 'error');
+        
+            showToast('অফলাইন ব্যাকআপ তৈরি হচ্ছে...', 'warning');
             const dataToExport = getAllDataAsObject();
             const dataStr = JSON.stringify(dataToExport, null, 2);
             const blob = new Blob([dataStr], { type: "application/json;charset=utf-8" });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/:/g, '-');
             link.href = url;
-            link.download = `inventory_backup_${new Date().toISOString().split('T')[0]}.json`;
+            link.download = `inventory_backup_${timestamp}.json`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-            showToast('ডেটা ব্যাকআপ ফাইল ডাউনলোড শুরু হয়েছে।');
+            showToast('ব্যাকআপ ফাইল সফলভাবে ফোনে ডাউনলোড করা হয়েছে।', 'success');
         }
         
-        function importAllData() {
+        async function executeOnlineBackup() {
+            closeModal('backup-choice-modal');
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return showToast('পিন সঠিক নয় বা বাতিল করা হয়েছে।', 'error');
+        
+            const dbPath = getDbPath();
+            if (!auth.currentUser || !dbPath || !navigator.onLine) {
+                return showToast('অনলাইন ব্যাকআপের জন্য ইন্টারনেট সংযোগ ও লগইন প্রয়োজন।', 'error');
+            }
+        
+            showToast('অনলাইন ডাটাবেজে ব্যাকআপ আপলোড করা হচ্ছে...', 'warning');
+            const dataToExport = getAllDataAsObject();
+            const backupDate = new Date().toISOString();
+            const backupDocId = `manual_${backupDate.replace(/:/g, '-')}`;
+        
+            try {
+                await dbPath.collection('manual_backups').doc(backupDocId).set(dataToExport);
+                showToast('অনলাইন ব্যাকআপ সফলভাবে সম্পন্ন হয়েছে।', 'success');
+            } catch (error) {
+                console.error("অনলাইন ব্যাকআপ আপলোড করতে সমস্যা হয়েছে:", error);
+                showToast('অনলাইন ব্যাকআপ আপলোডে ত্রুটি হয়েছে।', 'error');
+            }
+        }
+        
+        function executePhoneImport() {
+            closeModal('import-choice-modal');
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json,application/json';
@@ -9345,6 +9548,258 @@
                 reader.readAsText(file);
             };
             input.click();
+        }
+        
+        async function executeOnlineImport() {
+            closeModal('import-choice-modal');
+            const dbPath = getDbPath();
+            if (!auth.currentUser || !dbPath || !navigator.onLine) {
+                return showToast('অনলাইন ব্যাকআপ তালিকা আনতে ইন্টারনেট সংযোগ ও লগইন প্রয়োজন।', 'error');
+            }
+        
+            openModal('online-backup-list-modal');
+            const container = document.getElementById('online-backups-container');
+            container.innerHTML = '<p style="text-align: center; padding: 20px;">ব্যাকআপ তালিকা লোড হচ্ছে...</p>';
+        
+            try {
+                const manualBackupsPromise = dbPath.collection('manual_backups').get();
+                const autoBackupsPromise = dbPath.collection('automatic_backups').get();
+                const storageUsagePromise = calculateTotalStorageUsage();
+        
+                const [manualSnapshot, autoSnapshot, totalUsageMB] = await Promise.all([manualBackupsPromise, autoBackupsPromise, storageUsagePromise]);
+        
+                const allBackups = [];
+                manualSnapshot.docs.forEach(doc => allBackups.push({ id: doc.id, data: doc.data(), type: 'manual' }));
+                autoSnapshot.docs.forEach(doc => allBackups.push({ id: doc.id, data: doc.data(), type: 'auto' }));
+        
+                if (allBackups.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; padding: 20px;">কোনো অনলাইন ব্যাকআপ পাওয়া যায়নি।</p>';
+                } else {
+                    allBackups.sort((a, b) => new Date(b.data.exportedAt) - new Date(a.data.exportedAt));
+                    container.innerHTML = '';
+                    allBackups.forEach(backupInfo => {
+                        const backup = backupInfo.data;
+                        const date = new Date(backup.exportedAt).toLocaleString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        const backupDiv = document.createElement('div');
+                        backupDiv.className = 'ledger-entry';
+                        backupDiv.style.cursor = 'pointer';
+                        
+                        let typeIndicator = backupInfo.type === 'auto' ? '<span style="font-size: 10px; background: #e9ecef; color: #6c757d; padding: 2px 6px; border-radius: 10px; margin-left: 8px;">অটো</span>' : '';
+                        const sizeInBytes = new TextEncoder().encode(JSON.stringify(backup)).length;
+                        const sizeInKB = (sizeInBytes / 1024).toFixed(2);
+                        const sizeIndicator = `<span style="font-size: 11px; color: #6c757d; font-weight: 500;">(${toBengaliNumber(sizeInKB)} KB)</span>`;
+        
+                        backupDiv.innerHTML = `<div style="display: flex; flex-direction: column; gap: 4px;"><span><strong>তারিখ:</strong> ${date}${typeIndicator}</span>${sizeIndicator}</div>`;
+                        backupDiv.onclick = () => compareBackup(backupInfo.id, backupInfo.type);
+        
+                        let pressTimer;
+                        const startPress = (e) => {
+                            pressTimer = setTimeout(() => {
+                                if(e.cancelable) e.preventDefault();
+                                deleteOnlineBackup(backupInfo.id, backupInfo.type);
+                            }, 3000);
+                        };
+                        const cancelPress = () => clearTimeout(pressTimer);
+        
+                        backupDiv.addEventListener('mousedown', startPress);
+                        backupDiv.addEventListener('mouseup', cancelPress);
+                        backupDiv.addEventListener('mouseleave', cancelPress);
+                        backupDiv.addEventListener('touchstart', startPress, { passive: false });
+                        backupDiv.addEventListener('touchend', cancelPress);
+                        backupDiv.addEventListener('touchmove', cancelPress);
+        
+                        container.appendChild(backupDiv);
+                    });
+                }
+        
+                if (totalUsageMB !== null) {
+                    const usagePercentage = (totalUsageMB / 1024) * 100;
+                    const storageInfoHTML = `
+                        <div style="padding: 15px; border-top: 1px solid #e0e0e0; margin-top: 15px;">
+                            <h4 style="margin: 0 0 8px 0; font-size: 13px; text-align: center;">মোট স্টোরেজ ব্যবহার (১ জিবি)</h4>
+                            <div style="background-color: #e9ecef; border-radius: 20px; overflow: hidden; height: 12px;">
+                                <div style="width: ${usagePercentage.toFixed(2)}%; height: 100%; background-color: var(--success-color); transition: width 0.5s ease;"></div>
+                            </div>
+                            <p style="text-align: center; font-size: 12px; font-weight: 600; margin-top: 5px;">
+                                ব্যবহৃত: ${toBengaliNumber(totalUsageMB)} MB (${toBengaliNumber(usagePercentage.toFixed(2))}%)
+                            </p>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', storageInfoHTML);
+                }
+        
+            } catch (error) {
+                console.error("অনলাইন ব্যাকআপ তালিকা আনতে সমস্যা:", error);
+                container.innerHTML = '<p style="text-align: center; padding: 20px; color: red;">ব্যাকআপ তালিকা আনতে ত্রুটি হয়েছে।</p>';
+            }
+        }
+
+        async function deleteOnlineBackup(backupId, backupType) {
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            if (confirm('আপনি কি নিশ্চিত যে এই ব্যাকআপ ফাইলটি স্থায়ীভাবে মুছে ফেলতে চান?')) {
+                const dbPath = getDbPath();
+                const collectionName = backupType === 'auto' ? 'automatic_backups' : 'manual_backups';
+                try {
+                    await dbPath.collection(collectionName).doc(backupId).delete();
+                    showToast('ব্যাকআপ সফলভাবে মুছে ফেলা হয়েছে।', 'success');
+                    executeOnlineImport(); 
+                } catch (error) {
+                    showToast('ব্যাকআপ মুছতে সমস্যা হয়েছে।', 'error');
+                    console.error("Error deleting backup:", error);
+                }
+            }
+        }
+        
+        async function handleAutoBackup() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const lastBackupDate = localStorage.getItem('lastAutoBackupDate');
+        
+            if (lastBackupDate === todayStr) {
+                console.log('আজকের অটো-ব্যাকআপ ইতিমধ্যে সম্পন্ন হয়েছে।');
+                return;
+            }
+        
+            const dbPath = getDbPath();
+            if (!auth.currentUser || !dbPath || !navigator.onLine) {
+                console.log('অটো-ব্যাকআপের জন্য অনলাইন সংযোগ প্রয়োজন।');
+                return;
+            }
+        
+            console.log('স্বয়ংক্রিয় ব্যাকআপ প্রক্রিয়া শুরু হচ্ছে...');
+            const dataToExport = getAllDataAsObject();
+            const backupDocId = `auto_${todayStr}`;
+        
+            try {
+                await dbPath.collection('automatic_backups').doc(backupDocId).set(dataToExport);
+                localStorage.setItem('lastAutoBackupDate', todayStr);
+                console.log(`স্বয়ংক্রিয় ব্যাকআপ সফল: ${backupDocId}`);
+                await cleanupOldBackups();
+            } catch (error) {
+                console.error("স্বয়ংক্রিয় ব্যাকআপে ত্রুটি:", error);
+            }
+        }
+        
+        async function cleanupOldBackups() {
+            const dbPath = getDbPath();
+            if (!dbPath) return;
+        
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            
+            try {
+                const snapshot = await dbPath.collection('automatic_backups').get();
+                const batch = db.batch();
+                let deletedCount = 0;
+        
+                snapshot.docs.forEach(doc => {
+                    const backupData = doc.data();
+                    const backupDate = new Date(backupData.exportedAt);
+                    if (backupDate < sevenDaysAgo) {
+                        batch.delete(doc.ref);
+                        deletedCount++;
+                    }
+                });
+        
+                if (deletedCount > 0) {
+                    await batch.commit();
+                    console.log(`${toBengaliNumber(deletedCount)}টি পুরনো অটো-ব্যাকআপ মুছে ফেলা হয়েছে।`);
+                }
+            } catch (error) {
+                console.error("পুরনো ব্যাকআপ মুছতে সমস্যা হয়েছে:", error);
+            }
+        }
+
+        async function calculateTotalStorageUsage() {
+            const dbPath = getDbPath();
+            if (!dbPath || !navigator.onLine) {
+                return null;
+            }
+        
+            try {
+                const collections = ['sections', 'items', 'app_users', 'ledger', 'archivedReports', 'manual_backups', 'automatic_backups', 'requisitions'];
+                let totalSizeBytes = 0;
+        
+                for (const collectionName of collections) {
+                    const snapshot = await dbPath.collection(collectionName).get();
+                    snapshot.docs.forEach(doc => {
+                        const dataString = JSON.stringify(doc.data());
+                        totalSizeBytes += new TextEncoder().encode(dataString).length;
+                    });
+                }
+                
+                const totalSizeMB = (totalSizeBytes / (1024 * 1024)).toFixed(2);
+                return totalSizeMB;
+        
+            } catch (error) {
+                console.error("স্টোরেজ গণনা করতে সমস্যা:", error);
+                return null;
+            }
+        }
+        
+        async function compareBackup(backupDocId, backupType) {
+            closeModal('online-backup-list-modal');
+            openModal('backup-compare-modal');
+            const body = document.getElementById('compare-modal-body');
+            body.innerHTML = '<p style="text-align: center; padding: 20px;">বর্তমান ডেটার সাথে তুলনা করা হচ্ছে...</p>';
+        
+            const dbPath = getDbPath();
+            const collectionName = backupType === 'auto' ? 'automatic_backups' : 'manual_backups';
+            
+            const backupDoc = await dbPath.collection(collectionName).doc(backupDocId).get();
+            if (!backupDoc.exists) {
+                body.innerHTML = '<p style="text-align: center; padding: 20px; color: red;">ব্যাকআপ ফাইলটি খুঁজে পাওয়া যায়নি।</p>';
+                return;
+            }
+        
+            const backupData = backupDoc.data();
+            const currentData = getAllDataAsObject();
+            
+            let comparisonHTML = '<h3>ডেটা পরিবর্তন প্রিভিউ</h3>';
+            let hasChanges = false;
+        
+            const compareCollection = (collectionName, nameField, title) => {
+                const backupItems = new Map((backupData[collectionName] || []).map(item => [item.id, item]));
+                const currentItems = new Map((currentData[collectionName] || []).map(item => [item.id, item]));
+                let changes = '';
+        
+                backupItems.forEach((backupItem, id) => {
+                    if (!currentItems.has(id)) {
+                        changes += `<li style="color: green; font-size: 12px;">(+) নতুন যোগ হবে: ${backupItem[nameField]}</li>`;
+                    }
+                });
+        
+                currentItems.forEach((currentItem, id) => {
+                    if (!backupItems.has(id)) {
+                        changes += `<li style="color: red; font-size: 12px;">(-) মুছে যাবে: ${currentItem[nameField]}</li>`;
+                    }
+                });
+                
+                if(changes) {
+                    hasChanges = true;
+                    return `<h4>${title}</h4><ul style="padding-left: 20px; margin: 0;">${changes}</ul>`;
+                }
+                return '';
+            };
+        
+            comparisonHTML += compareCollection('app_users', 'name', 'কর্মচারী');
+            comparisonHTML += compareCollection('sections', 'name', 'সেকশন');
+            comparisonHTML += compareCollection('items', 'name', 'আইটেম');
+        
+            if (!hasChanges) {
+                comparisonHTML += '<p style="text-align: center; color: green; font-weight: bold;">কোনো উল্লেখযোগ্য পরিবর্তন পাওয়া যায়নি।</p>';
+            }
+        
+            body.innerHTML = comparisonHTML;
+        
+            document.getElementById('confirm-restore-btn').onclick = async () => {
+                if (confirm('আপনি কি নিশ্চিত যে এই ব্যাকআপটি পুনরুদ্ধার করতে চান? আপনার বর্তমান ডেটা এই ব্যাকআপের ডেটা দিয়ে প্রতিস্থাপিত হবে।')) {
+                    closeModal('backup-compare-modal');
+                    importedFileContent = JSON.stringify(backupData);
+                    await processDataImport(false);
+                }
+            };
         }
 
         async function processDataImport(isMerging) {
@@ -9662,6 +10117,13 @@
                 document.getElementById('reset-confirm-dialog-2').classList.add('show');
             });
             document.getElementById('confirm-reset-2').addEventListener('click', executeHardReset);
+            // ★★★ নতুন কোড এখানে যোগ করা হয়েছে ★★★
+            document.getElementById('backup-to-phone-btn').addEventListener('click', executePhoneBackup);
+            document.getElementById('backup-to-online-btn').addEventListener('click', executeOnlineBackup);
+            document.getElementById('import-from-phone-btn').addEventListener('click', executePhoneImport);
+            document.getElementById('import-from-online-btn').addEventListener('click', executeOnlineImport);
+            // ★★★ নতুন কোড শেষ ★★★
+                    
         
             document.addEventListener('click', function(event) {
                 if (event.target.classList.contains('custom-search-input')) {
