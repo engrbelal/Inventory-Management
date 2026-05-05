@@ -2266,6 +2266,66 @@
         let itemToHighlight = null;
         let slowScrollAnimationId = null;
         // --- Helper Functions ---
+        function getDeviceFingerprint() {
+            let deviceId = localStorage.getItem('grgl_strict_device_id');
+            if (!deviceId) {
+                deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 12);
+                localStorage.setItem('grgl_strict_device_id', deviceId);
+            }
+            return deviceId;
+        }
+        
+        async function verifyDeviceLock(user) {
+            if (user.email !== 'generalstore@goldenrefit-bd.com') return true;
+            
+            const currentFingerprint = getDeviceFingerprint();
+            const dbId = (ADMIN_UIDS.includes(user.uid) || ELECTRICIAN_UIDS.includes(user.uid)) ? CENTRAL_DB_ID : user.uid;
+            const deviceLockRef = db.collection('inventories').doc(dbId).collection('app_state').doc('device_lock');
+            
+            const forceLogoutAndClearData = async (message) => {
+                document.getElementById('main-app-wrapper').style.display = 'none';
+                
+                if (typeof detachListeners === 'function') detachListeners();
+                
+                allItems = []; sections = []; ledger = []; users = []; archivedReports = [];
+                const keysToClear = ['items', 'sections', 'ledger', 'app_users', 'archivedReports', 'sectionOrder', 'itemOrders', 'tempRequisition', 'stockLevels', 'stockLevelRules'];
+                keysToClear.forEach(key => localStorage.removeItem(key));
+                
+                try {
+                    await auth.signOut();
+                } catch(e) {}
+                
+                alert(message);
+                window.location.replace(window.location.href);
+            };
+        
+            try {
+                const doc = await deviceLockRef.get({ source: 'server' });
+                
+                if (doc.exists && doc.data().lockedFingerprint) {
+                    if (doc.data().lockedFingerprint !== currentFingerprint) {
+                        await forceLogoutAndClearData('সিকিউরিটি পলিসি এরর: নিরাপত্তা জনিত কারণে একই আইডি একাধিক ডিভাইসে ব্যবহার করা যাবে না।');
+                        return false;
+                    }
+                } else {
+                    await deviceLockRef.set({
+                        lockedFingerprint: currentFingerprint,
+                        lockedAt: new Date().toISOString()
+                    }, { merge: true });
+                }
+            } catch (error) {
+                try {
+                    const offlineDoc = await deviceLockRef.get({ source: 'cache' });
+                    if (offlineDoc.exists && offlineDoc.data().lockedFingerprint !== currentFingerprint) {
+                        await forceLogoutAndClearData('সিকিউরিটি পলিসি এরর: নিরাপত্তা জনিত কারণে একই আইডি একাধিক ডিভাইসে ব্যবহার করা যাবে না।');
+                        return false;
+                    }
+                } catch (e) {
+                }
+            }
+            return true;
+        }
+
         const toBengaliNumber = (enStr) => {
             if (typeof enStr !== 'string' && typeof enStr !== 'number') return enStr;
             const str = String(enStr);
@@ -2280,21 +2340,6 @@
             }
             const userProfile = users.find(u => u.id === currentUser.uid);
             return userProfile ? userProfile.name : currentUser.email.split('@')[0];
-        }
-        function getDeviceFingerprint() {
-            const navigatorInfo = window.navigator;
-            const screenInfo = window.screen;
-            let fingerprint = navigatorInfo.userAgent +
-                              screenInfo.height + screenInfo.width + screenInfo.colorDepth +
-                              navigatorInfo.language + navigatorInfo.hardwareConcurrency;
-            
-            let hash = 0;
-            for (let i = 0; i < fingerprint.length; i++) {
-                const char = fingerprint.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash |= 0; 
-            }
-            return 'device_' + Math.abs(hash).toString(16);
         }
 
         function toggleRequisitionIdField(isUrgent) {
@@ -2457,9 +2502,19 @@
                 itemNameForDisplay = entry.originalItemName;
             }
         
+            let actionByText = '';
+            if (entry.actionBy) {
+                const actionTakerName = entry.actionBy;
+                if (forPlainText) {
+                    actionByText = `। কাজটি সম্পন্ন করেছেন: ${actionTakerName}`;
+                } else {
+                    actionByText = `। <strong style="color: #555; font-weight: 500;">সম্পন্ন করেছেন: ${actionTakerName}</strong>`;
+                }
+            }
+        
             if (entry.change > 0) {
                 const actionText = entry.person === 'সংশোধন' ? 'স্টক আপডেট হয়েছে' : 'স্টকে যোগ হয়েছে';
-                return `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} ${actionText}।${detailsText}`;
+                return `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} ${actionText}।${detailsText}${actionByText}`;
             } else {
                 let requisitionBadge = '';
                 if (entry.requisitionId) {
@@ -2480,25 +2535,7 @@
                 
                 let baseDescription = `${datePart} ${time}, ${quantity} ${unit} ${itemNameForDisplay} নিয়েছে ${entry.person}${detailsText}${requisitionBadge}`;
                 
-                let actionByText = '';
-                if (entry.actionBy) {
-                    const actionTakerName = entry.actionBy;
-                    if (forPlainText) {
-                        actionByText = `। কাজটি সম্পন্ন করেছেন: ${actionTakerName}`;
-                    } else {
-                        actionByText = `। <strong style="color: #555; font-weight: 500;">সম্পন্ন করেছেন: ${actionTakerName}</strong>`;
-                    }
-                } else if (entry.person !== 'নতুন আইটেম' && entry.person !== 'সংশোধন') {
-                    const defaultActionTaker = 'স্টোর কিপার';
-                    if (forPlainText) {
-                        actionByText = `। কাজটি সম্পন্ন করেছেন: ${defaultActionTaker}`;
-                    } else {
-                        actionByText = `। <strong style="color: #555; font-weight: 500;">সম্পন্ন করেছেন: ${defaultActionTaker}</strong>`;
-                    }
-                }
-                
                 return baseDescription + actionByText;
-
             }
         };
 
@@ -4827,13 +4864,14 @@
                     
                     const ledgerRef = dbPath.collection('ledger').doc();
                     batch.set(ledgerRef, {
-                        itemId: item.id,
-                        itemName: item.name,
-                        change: totalChange,
-                        person: 'সংশোধন',
-                        date: new Date().toISOString(),
-                        details: changes
-                    });
+                                            itemId: item.id,
+                                            itemName: item.name,
+                                            change: totalChange,
+                                            person: 'সংশোধন',
+                                            date: new Date().toISOString(),
+                                            details: changes,
+                                            actionBy: getActionTakerName()
+                                        });
                 }
         
                 batch.commit()
@@ -6458,7 +6496,8 @@
                 itemName: itemName,
                 change: change,
                 person: 'সংশোধন',
-                date: new Date().toISOString()
+                date: new Date().toISOString(),
+                actionBy: getActionTakerName()
             });
         
             batch.commit().then(() => showToast('স্টক আপডেট করা হয়েছে।'))
@@ -7067,7 +7106,8 @@
                         change: initialChange,
                         person: 'নতুন আইটেম',
                         date: new Date().toISOString(),
-                        details: ledgerDetails
+                        details: ledgerDetails,
+                        actionBy: getActionTakerName()
                     };
                     localData.ledger.push(ledgerEntry);
                     ledgerToSync.push(ledgerEntry);
@@ -9211,49 +9251,18 @@
             loginBtn.disabled = true;
             showAuthMessage('login', 'লগইন করা হচ্ছে...');
         
-            const officialStoreAdminEmail = "generalstore@goldenrefit-bd.com";
-        
             auth.signInWithEmailAndPassword(email, password)
                 .then((userCredential) => {
-                    const user = userCredential.user;
-        
-                    if (email === officialStoreAdminEmail) {
-                        showAuthMessage('login', 'ডিভাইস ভেরিফাই করা হচ্ছে...');
-                        const userDocRef = db.collection('app_metadata').doc(user.uid);
-                        
-                        return userDocRef.get().then(userDoc => {
-                            const deviceFingerprint = getDeviceFingerprint();
-        
-                            if (userDoc.exists && userDoc.data().trusted_device_id) {
-                                const trustedDeviceId = userDoc.data().trusted_device_id;
-                                if (trustedDeviceId !== deviceFingerprint) {
-                                    return auth.signOut().then(() => {
-                                        throw new Error('এই অ্যাকাউন্টটি শুধুমাত্র নির্ধারিত ডিভাইস থেকে লগইন করা যাবে।');
-                                    });
-                                }
-                            } else {
-                                return userDocRef.set({ trusted_device_id: deviceFingerprint }).then(() => {
-                                    showToast('এই ডিভাইসটিকে বিশ্বস্ত হিসেবে রেজিস্টার করা হয়েছে।', 'success');
-                                });
-                            }
-                        });
-                    }
-                })
-                .then(() => {
-                    showAuthMessage('login', '');
                 })
                 .catch((error) => {
                     let message = 'একটি অজানা ত্রুটি ঘটেছে।';
                     if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                         message = 'আপনার ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।';
-                    } else {
-                        message = error.message;
                     }
                     showAuthMessage('login', message, true);
                     loginBtn.disabled = false;
                 });
         }
-
         function handleAuthClose() {
             const hasLocalData = (localStorage.getItem('sections') || '[]').length > 2;
         
@@ -9658,34 +9667,58 @@
         }
         
         async function handleAutoBackup() {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const lastBackupDate = localStorage.getItem('lastAutoBackupDate');
+            const now = new Date();
+            if (now.getHours() < 12) return;
         
-            if (lastBackupDate === todayStr) {
-                console.log('আজকের অটো-ব্যাকআপ ইতিমধ্যে সম্পন্ন হয়েছে।');
-                return;
-            }
-        
-            const dbPath = getDbPath();
-            if (!auth.currentUser || !dbPath || !navigator.onLine) {
-                console.log('অটো-ব্যাকআপের জন্য অনলাইন সংযোগ প্রয়োজন।');
-                return;
-            }
-        
-            console.log('স্বয়ংক্রিয় ব্যাকআপ প্রক্রিয়া শুরু হচ্ছে...');
-            const dataToExport = getAllDataAsObject();
+            const todayStr = now.toISOString().split('T')[0];
             const backupDocId = `auto_${todayStr}`;
+            
+            const dbPath = getDbPath();
+            if (!auth.currentUser || !dbPath || !navigator.onLine) return;
         
             try {
-                await dbPath.collection('automatic_backups').doc(backupDocId).set(dataToExport);
+                const existingBackup = await dbPath.collection('automatic_backups').doc(backupDocId).get({ source: 'server' });
+                if (existingBackup.exists) {
+                    localStorage.setItem('lastAutoBackupDate', todayStr);
+                    return;
+                }
+        
+                const collections = ['sections', 'items', 'app_users', 'ledger', 'archivedReports'];
+                const backupData = {
+                    version: "2.0",
+                    exportedAt: new Date().toISOString(),
+                    sections: [],
+                    items: [],
+                    app_users: [],
+                    ledger: [],
+                    archivedReports: [],
+                    sectionOrder: [],
+                    itemOrders: {}
+                };
+        
+                for (const col of collections) {
+                    const snapshot = await dbPath.collection(col).get({ source: 'server' });
+                    snapshot.docs.forEach(doc => {
+                        backupData[col].push({ id: doc.id, ...doc.data() });
+                    });
+                }
+        
+                const settingsDoc = await dbPath.collection('app_state').doc('settings').get({ source: 'server' });
+                if (settingsDoc.exists) {
+                    const settingsData = settingsDoc.data();
+                    if (settingsData.sectionOrder) backupData.sectionOrder = settingsData.sectionOrder;
+                    if (settingsData.itemOrders) backupData.itemOrders = settingsData.itemOrders;
+                }
+        
+                await dbPath.collection('automatic_backups').doc(backupDocId).set(backupData);
                 localStorage.setItem('lastAutoBackupDate', todayStr);
-                console.log(`স্বয়ংক্রিয় ব্যাকআপ সফল: ${backupDocId}`);
+                
                 await cleanupOldBackups();
             } catch (error) {
-                console.error("স্বয়ংক্রিয় ব্যাকআপে ত্রুটি:", error);
+                console.error(error);
             }
         }
-        
+
         async function cleanupOldBackups() {
             const dbPath = getDbPath();
             if (!dbPath) return;
@@ -10227,6 +10260,8 @@
                 };
         
                 if (user) {
+                  const isAllowed = await verifyDeviceLock(user);
+                          if (!isAllowed) return;
                     runMainApp();
                 } else {
                     const hasLocalData = (localStorage.getItem('items') || '[]').length > 2 || (localStorage.getItem('sections') || '[]').length > 2;
