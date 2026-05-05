@@ -3353,7 +3353,8 @@
                             requisitionId: physicalReqId,
                             details: reqItem.details,
                             variantOrder: reqItem.details ? Object.keys(reqItem.details) : null,
-                            clearingReqId: digitalReqId
+                            clearingReqId: digitalReqId,
+                            actionBy: getActionTakerName()
                         });
                     }
         
