@@ -6799,6 +6799,31 @@
                 });
             }
         }
+        
+        async function deleteUser(userId) {
+            if (!securityCheck()) return;
+            
+            const user = users.find(u => u.id === userId);
+            if (!user) return;
+        
+            const pinVerified = await requestPinAndExecute();
+            if (!pinVerified) return;
+        
+            if (!confirm(`আপনি কি নিশ্চিত যে '${user.name}' কে কর্মচারীর তালিকা থেকে মুছে ফেলতে চান?`)) return;
+        
+            users = users.filter(u => u.id !== userId);
+            localStorage.setItem('app_users', JSON.stringify(users));
+            
+            showToast('কর্মচারীকে তালিকা থেকে মুছে ফেলা হয়েছে।');
+            renderUsersPage();
+        
+            const dbPath = getDbPath();
+            if (navigator.onLine && dbPath) {
+                dbPath.collection('app_users').doc(userId).delete().catch(error => {
+                    console.error("Error deleting user:", error);
+                });
+            }
+        }
 
         async function deleteSection(sectionId) {
           if (!securityCheck()) return;
