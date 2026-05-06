@@ -9604,11 +9604,20 @@
                         const sizeInKB = (sizeInBytes / 1024).toFixed(2);
                         const sizeIndicator = `<span style="font-size: 11px; color: #6c757d; font-weight: 500;">(${toBengaliNumber(sizeInKB)} KB)</span>`;
         
-                        backupDiv.innerHTML = `<div style="display: flex; flex-direction: column; gap: 4px;"><span><strong>তারিখ:</strong> ${date}${typeIndicator}</span>${sizeIndicator}</div>`;
+                        backupDiv.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px;">
+                                <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
+                                    <span><strong>তারিখ:</strong> ${date}${typeIndicator}</span>
+                                    ${sizeIndicator}
+                                </div>
+                                <button class="action-btn" style="background-color: #17a2b8; padding: 6px 12px; font-size: 16px; margin: 0; width: auto; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 6px;" onclick="event.stopPropagation(); downloadOnlineBackup('${backupInfo.id}', '${backupInfo.type}')">📥</button>
+                            </div>
+                        `;
                         backupDiv.onclick = () => compareBackup(backupInfo.id, backupInfo.type);
         
                         let pressTimer;
                         const startPress = (e) => {
+                            if (e.target.tagName.toLowerCase() === 'button') return;
                             pressTimer = setTimeout(() => {
                                 if(e.cancelable) e.preventDefault();
                                 deleteOnlineBackup(backupInfo.id, backupInfo.type);
@@ -9648,6 +9657,39 @@
                 container.innerHTML = '<p style="text-align: center; padding: 20px; color: red;">ব্যাকআপ তালিকা আনতে ত্রুটি হয়েছে।</p>';
             }
         }
+        
+        async function downloadOnlineBackup(backupId, backupType) {
+            const dbPath = getDbPath();
+            if (!dbPath) return showToast('লগইন করা নেই।', 'error');
+        
+            showToast('ফাইল ডাউনলোড হচ্ছে, অপেক্ষা করুন...', 'warning');
+            const collectionName = backupType === 'auto' ? 'automatic_backups' : 'manual_backups';
+            
+            try {
+                const doc = await dbPath.collection(collectionName).doc(backupId).get();
+                if (!doc.exists) {
+                    return showToast('ব্যাকআপ ফাইলটি পাওয়া যায়নি।', 'error');
+                }
+                
+                const backupData = doc.data();
+                const dataStr = JSON.stringify(backupData, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${backupId}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                showToast('ডাউনলোড সফল হয়েছে।', 'success');
+            } catch (error) {
+                console.error("Download failed:", error);
+                showToast('ডাউনলোড করতে সমস্যা হয়েছে।', 'error');
+            }
+        }
 
         async function deleteOnlineBackup(backupId, backupType) {
             const pinVerified = await requestPinAndExecute();
@@ -9669,9 +9711,11 @@
         
         async function handleAutoBackup() {
             const now = new Date();
-            if (now.getHours() < 12) return;
-        
-            const todayStr = now.toISOString().split('T')[0];
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+            
             const backupDocId = `auto_${todayStr}`;
             
             const dbPath = getDbPath();
