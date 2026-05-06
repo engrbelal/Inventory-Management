@@ -4604,6 +4604,81 @@
             showToast(`'${selectedSection}' সেকশনের ক্রম ডিফল্ট করা হয়েছে। পরিবর্তনটি স্থায়ী করতে "সেভ করুন" বাটনে ক্লিক করুন।`, 'warning');
         }
 
+        function renderUserSearchCards(searchTerm) {
+            if (!searchTerm || searchTerm.length < 2) return '';
+            
+            const matchedUsers = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
+            if (matchedUsers.length === 0) return '';
+        
+            let userCardsHTML = '';
+            matchedUsers.forEach(user => {
+                const userName = user.name;
+                const userLedger = ledger.filter(l => l.person === userName && l.change < 0).sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+                const currentMonthEntries = userLedger.filter(e => {
+                    const d = new Date(e.date);
+                    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+                });
+                const monthlyTotal = currentMonthEntries.reduce((sum, e) => sum + Math.abs(e.change), 0);
+                
+                const urgentEntries = userLedger.filter(e => e.isUrgent === true);
+                let urgentHTML = '';
+                if (urgentEntries.length > 0) {
+                    urgentHTML = `<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 8px; margin-bottom: 10px; border-radius: 4px;">
+                        <strong style="color: #856404; font-size: 13px;">⚠️ অমীমাংসিত জরুরী লেনদেন:</strong>
+                        <ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 12px; color: #856404;">
+                            ${urgentEntries.map(e => `<li>${e.itemName} - ${toBengaliNumber(Math.abs(e.change))} ${allItems.find(i=>i.id===e.itemId)?.unit || 'পিস'}</li>`).join('')}
+                        </ul>
+                    </div>`;
+                }
+        
+                const recentEntries = userLedger.slice(0, 5);
+                let recentHTML = '';
+                if (recentEntries.length > 0) {
+                    recentHTML = `<ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 12px;">
+                        ${recentEntries.map(e => {
+                            const dateStr = new Date(e.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' });
+                            return `<li>${e.itemName} - <strong>${toBengaliNumber(Math.abs(e.change))} ${allItems.find(i=>i.id===e.itemId)?.unit || 'পিস'}</strong> <span style="color:#666; font-size:10px;">(${dateStr})</span></li>`;
+                        }).join('')}
+                    </ul>`;
+                } else {
+                    recentHTML = `<p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">কোনো লেনদেন পাওয়া যায়নি।</p>`;
+                }
+        
+                userCardsHTML += `
+                    <div class="card" style="background: #f8f9fa; border-left: 5px solid #17a2b8; margin-bottom: 15px; padding: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 10px;">
+                            <h3 style="margin: 0; font-size: 16px; color: #0056b3;">👤 ${userName}</h3>
+                            <button onclick="showUserReport('${user.id}')" style="padding: 4px 10px; font-size: 11px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">বিস্তারিত রিপোর্ট</button>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                            <div style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #eee; text-align: center;">
+                                <span style="font-size: 11px; color: #666; display: block;">চলতি মাসে গ্রহণ</span>
+                                <strong style="font-size: 16px; color: #28a745;">${toBengaliNumber(monthlyTotal)} টি</strong>
+                            </div>
+                            <div style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #eee; text-align: center;">
+                                <span style="font-size: 11px; color: #666; display: block;">মোট লেনদেন</span>
+                                <strong style="font-size: 16px; color: #007bff;">${toBengaliNumber(userLedger.length)} বার</strong>
+                            </div>
+                        </div>
+                        
+                        ${urgentHTML}
+                        
+                        <div>
+                            <strong style="font-size: 13px; color: #333;">সর্বশেষ ৫টি লেনদেন:</strong>
+                            ${recentHTML}
+                        </div>
+                    </div>
+                `;
+            });
+        
+            return userCardsHTML;
+        }
+
         async function renderInventoryPage() {
             await loadRules();
         
@@ -4743,10 +4818,16 @@
                 }
             });
         
-            if (!foundItems && searchTerm) {
-                container.innerHTML = `<p style="text-align: center; margin-top: 20px;">'${searchInput.value}' নামে কোনো আইটেম বা রিকুইজিশন পাওয়া যায়নি।</p>`;
-            } else if (allItems.length === 0) {
+            const userCards = renderUserSearchCards(searchTerm);
+            
+            if (!foundItems && searchTerm && !userCards) {
+                container.innerHTML = `<p style="text-align: center; margin-top: 20px;">'${searchInput.value}' নামে কোনো আইটেম, রিকুইজিশন বা কর্মচারী পাওয়া যায়নি।</p>`;
+            } else if (allItems.length === 0 && !searchTerm) {
                 container.innerHTML = `<p style="text-align: center; margin-top: 20px;">কোনো আইটেম যোগ করা হয়নি।</p>`;
+            }
+    
+            if (userCards) {
+                container.innerHTML = userCards + container.innerHTML;
             }
         
             if (itemToHighlight) {
