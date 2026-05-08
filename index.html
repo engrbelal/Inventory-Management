@@ -230,12 +230,21 @@
         .toast.error { background-color: var(--danger-color); }
         .toast.warning { background-color: var(--warning-color); color: var(--dark-text); }
 
+        .bottom-fixed-wrapper {
+            position: fixed; bottom: 0; left: 0; width: 100%; z-index: 999;
+            display: flex; flex-direction: column;
+        }
+        .company-footer {
+            text-align: center; padding: 10px; font-size: 12px; color: #6c757d; 
+            background-color: #f8f9fa; border-top: 1px solid #e9ecef; width: 100%; box-sizing: border-box;
+        }
         .sliding-notification-bar {
-            position: fixed; bottom: 0; left: 0; width: 100%;
+            width: 100%;
             background-color: var(--level-critical-bg); color: white;
-            padding: 8px 0; overflow: hidden; white-space: nowrap; z-index: 999;
+            padding: 8px 0; overflow: hidden; white-space: nowrap;
             display: none;
         }
+
         .sliding-notification-bar.show { display: block; }
         .sliding-text {
             display: inline-block;
@@ -1398,7 +1407,34 @@
                             </div>
                         </div>
                     </div>
-                </div>                
+                </div>    
+                <div class="card" id="dev-control-card" style="display: none; border: 2px solid #dc3545;">
+                    <div class="card-header" onclick="toggleCardBody(this)" style="cursor: pointer;">
+                        <h2 style="color: #dc3545;">ডেভেলপার কন্ট্রোল</h2>
+                        <span class="toggle-icon collapsed">▼</span>
+                    </div>
+                    <div class="card-body collapsible collapsed" style="padding-bottom: 15px;">
+                        <div class="form-group" style="padding: 10px; box-shadow: none; background: #f8f9fa;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label for="store-restriction-toggle" style="font-weight: 600; cursor: pointer;">স্টোর রেস্ট্রিকশন চালু করুন</label>
+                                <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                                    <input type="checkbox" id="store-restriction-toggle" onchange="handleStoreRestrictionToggle()">
+                                    <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px;"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group" style="padding: 10px; box-shadow: none; background: #f8f9fa; margin-top: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label for="scrolling-text-toggle" style="font-weight: 600; cursor: pointer;">স্ক্রলিং নোটিশ দেখান</label>
+                                <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                                    <input type="checkbox" id="scrolling-text-toggle" onchange="handleScrollingTextToggle()">
+                                    <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px;"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- ৮. ডেটা ম্যানেজমেন্ট -->
                 <div class="card">
                     <h2>ডেটা ম্যানেজমেন্ট</h2>
@@ -1569,7 +1605,12 @@
         </div>
 
         <div id="notification-container"></div>
-        <div class="sliding-notification-bar" id="slidingNotificationBar"><div class="sliding-text" id="slidingText"></div></div>
+        <div class="bottom-fixed-wrapper" id="bottomFixedWrapper">
+            <div class="sliding-notification-bar" id="slidingNotificationBar"><div class="sliding-text" id="slidingText"></div></div>
+            <div class="company-footer">
+                &copy; 2025-2026 <strong>CoreSync Technologies</strong>. All rights reserved.
+            </div>
+        </div>
         </div>
     <div id="import-option-dialog" class="modal-overlay">
         <div class="modal-content" style="max-width: 380px;">
@@ -2080,7 +2121,34 @@
           </div>
       </div>
   </div>
-  
+
+  <div id="upgradePromptModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 350px; text-align: center; padding: 25px 20px; position: relative;">
+          
+          <!-- ক্লোজ বাটন -->
+          <span onclick="closeModal('upgradePromptModal')" style="position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; color: #888; font-weight: bold;">&times;</span>
+          
+          <div style="font-size: 45px; margin-bottom: 10px; animation: modal-pop 0.5s ease-out;">💎</div>
+          <h2 style="color: #0056b3; margin-bottom: 15px; font-size: 18px; font-weight: 700;">আপগ্রেড প্রয়োজন</h2>
+          <p style="font-size: 14px; color: #495057; line-height: 1.6; margin-bottom: 15px;">
+              আপনার অ্যাকাউন্টের ফ্রি লিমিট শেষ হয়ে গেছে। আনলিমিটেড আইটেম এবং সেকশন যুক্ত করতে অনুগ্রহ করে প্রিমিয়াম প্ল্যানে আপগ্রেড করুন।
+          </p>
+          <div style="background: #e9ecef; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #333;">
+              <strong>যোগাযোগ করুন:</strong><br>
+              <span style="color: #0056b3; font-weight: 600;">support@coresync.com</span>
+          </div>
+          <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+              <button class="action-btn" style="background: #6c757d; flex: 1; font-size: 14px; padding: 10px; border-radius: 8px;" onclick="closeModal('upgradePromptModal')">বাতিল</button>
+              <a href="mailto:engr.mdbelal@gmail.com?subject=Request%20for%20Premium%20Upgrade%20-%20Inventory%20App" style="text-decoration: none; flex: 1;">
+                  <button class="action-btn" style="background: var(--primary-gradient); width: 100%; font-size: 14px; padding: 10px; border-radius: 8px;">ইমেইল করুন</button>
+              </a>
+          </div>
+          <div style="font-size: 11px; color: #888; border-top: 1px solid #eee; padding-top: 10px;">
+              Powered by <strong>CoreSync Technologies</strong>
+          </div>
+      </div>
+  </div>
+
   <!-- ★★★ নতুন কোড শুরু: ব্যাকআপ ও ইমপোর্ট মডাল ★★★ -->
   
   <!-- ব্যাকআপ অপশন মডাল -->
@@ -2185,6 +2253,8 @@
         let sortableInstance = null;
         let itemSortableInstance = null;
         let itemOrders = {};
+        let isStoreRestricted = true;
+        let isScrollingTextEnabled = localStorage.getItem('isScrollingTextEnabled') !== 'false';
         const ADMIN_UIDS = [
             "MnhpRrkD24WNCXQOF0EVWtyqEac2",
             "X85JKidshVWCJaNO1HVcXknpfbp2",
@@ -2785,6 +2855,19 @@
                         if (settingsData.itemOrders) {
                             itemOrders = settingsData.itemOrders;
                             localStorage.setItem('itemOrders', JSON.stringify(itemOrders));
+                        }
+                        if (settingsData.storeRestricted !== undefined) {
+                            isStoreRestricted = settingsData.storeRestricted;
+                            const toggle = document.getElementById('store-restriction-toggle');
+                            if (toggle) toggle.checked = isStoreRestricted;
+                            applyStoreRestrictionUI();
+                        }
+                        if (settingsData.scrollingTextEnabled !== undefined) {
+                            isScrollingTextEnabled = settingsData.scrollingTextEnabled;
+                            localStorage.setItem('isScrollingTextEnabled', isScrollingTextEnabled);
+                            const scrollToggle = document.getElementById('scrolling-text-toggle');
+                            if (scrollToggle) scrollToggle.checked = isScrollingTextEnabled;
+                            updateSlidingNotifications();
                         }
                         populateItemSortSectionDropdown();
                         renderInventoryPage();
@@ -3415,6 +3498,53 @@
             }
         
             showToast(isEnabled ? 'অ্যাডমিন রিকুইজিশন বাটন চালু করা হয়েছে।' : 'অ্যাডমিন রিকুইজিশন বাটন বন্ধ করা হয়েছে।', 'success');
+        }
+
+        async function handleStoreRestrictionToggle() {
+            const toggleBtn = document.getElementById('store-restriction-toggle');
+            const isRestricted = toggleBtn.checked;
+            const dbPath = getDbPath();
+            
+            if (dbPath) {
+                try {
+                    await dbPath.collection('app_state').doc('settings').set({ storeRestricted: isRestricted }, { merge: true });
+                    showToast(isRestricted ? 'স্টোর রেস্ট্রিকশন চালু করা হয়েছে।' : 'স্টোর রেস্ট্রিকশন বন্ধ করা হয়েছে।', 'success');
+                } catch (error) {
+                    console.error(error);
+                    showToast('সেটিংস আপডেট করতে সমস্যা হয়েছে।', 'error');
+                    toggleBtn.checked = !isRestricted;
+                }
+            } else {
+                showToast('লগইন করা নেই।', 'error');
+                toggleBtn.checked = !isRestricted;
+            }
+        }
+        
+        async function handleScrollingTextToggle() {
+            const toggleBtn = document.getElementById('scrolling-text-toggle');
+            const isEnabled = toggleBtn.checked;
+            const dbPath = getDbPath();
+            
+            if (dbPath) {
+                try {
+                    await dbPath.collection('app_state').doc('settings').set({ scrollingTextEnabled: isEnabled }, { merge: true });
+                    showToast(isEnabled ? 'স্ক্রলিং নোটিশ চালু করা হয়েছে।' : 'স্ক্রলিং নোটিশ বন্ধ করা হয়েছে।', 'success');
+                } catch (error) {
+                    console.error(error);
+                    showToast('সেটিংস আপডেট করতে সমস্যা হয়েছে।', 'error');
+                    toggleBtn.checked = !isEnabled;
+                }
+            } else {
+                showToast('লগইন করা নেই।', 'error');
+                toggleBtn.checked = !isEnabled;
+            }
+        }
+
+        function applyStoreRestrictionUI() {
+            const devCard = document.getElementById('dev-control-card');
+            if (devCard && currentUser) {
+                devCard.style.display = (currentUser.email === 'engr.mdbelal@gmail.com') ? 'block' : 'none';
+            }
         }
 
         function loadAdminRequisitionButtonSetting() {
@@ -6068,6 +6198,9 @@
         }
 
         function openItemAddModal() {
+            if (currentUser && currentUser.email === 'generalstore@goldenrefit-bd.com' && isStoreRestricted) {
+                return openModal('upgradePromptModal');
+            }
             const formsContainer = document.getElementById('multiItemFormsContainer');
             formsContainer.innerHTML = '';
             if (sections.length > 0) {
@@ -7032,6 +7165,9 @@
         }
 
         function addNewSection() {
+            if (currentUser && currentUser.email === 'generalstore@goldenrefit-bd.com' && isStoreRestricted) {
+                return openModal('upgradePromptModal');
+            }
             const sectionNameInput = document.getElementById('newSectionName');
             const sectionName = sectionNameInput.value.trim();
             if (!sectionName) {
@@ -7986,6 +8122,18 @@
 
         // --- Sliding Notification ---
         async function updateSlidingNotifications() {
+            const bar = document.getElementById('slidingNotificationBar');
+            const slidingTextEl = document.getElementById('slidingText');
+            const wrapper = document.getElementById('bottomFixedWrapper');
+
+            if (typeof isScrollingTextEnabled !== 'undefined' && !isScrollingTextEnabled) {
+                if (bar) bar.classList.remove('show');
+                if (wrapper) {
+                    document.body.style.paddingBottom = Math.max(0, wrapper.offsetHeight) + 'px';
+                }
+                return;
+            }
+
             await loadRules();
         
             const getUrgencyScore = (item) => {
@@ -8012,9 +8160,6 @@
                 .map(item => ({ ...item, urgency: getUrgencyScore(item) }))
                 .filter(item => item.urgency > 0)
                 .sort((a, b) => b.urgency - a.urgency);
-        
-            const bar = document.getElementById('slidingNotificationBar');
-            const slidingTextEl = document.getElementById('slidingText');
         
             if (urgentItems.length > 0) {
                 let htmlContent = '';
@@ -8053,7 +8198,8 @@
                 }
         
                 bar.classList.add('show');
-                const paddingValue = Math.max(0, bar.offsetHeight);
+                
+                const paddingValue = wrapper ? wrapper.offsetHeight : bar.offsetHeight;
                 document.body.style.paddingBottom = paddingValue + 'px';
         
                 slidingTextEl.querySelectorAll('.urgent-item-link').forEach(link => {
@@ -8071,7 +8217,8 @@
         
             } else {
                 bar.classList.remove('show');
-                document.body.style.paddingBottom = '0';
+                const paddingValue = wrapper ? wrapper.offsetHeight : 0;
+                document.body.style.paddingBottom = paddingValue + 'px';
                 slidingTextEl.style.animationDuration = '0s';
             }
         }
@@ -9290,6 +9437,7 @@
                 listenForNewRequisitions();
                 loadAdminRequisitionButtonSetting();
                 handleAutoBackup();
+                applyStoreRestrictionUI();
             }
         }
 
@@ -10411,8 +10559,8 @@
                 };
         
                 if (user) {
-                  const isAllowed = await verifyDeviceLock(user);
-                          if (!isAllowed) return;
+               //   const isAllowed = await verifyDeviceLock(user);
+                     //     if (!isAllowed) return;
                     runMainApp();
                 } else {
                     const hasLocalData = (localStorage.getItem('items') || '[]').length > 2 || (localStorage.getItem('sections') || '[]').length > 2;
