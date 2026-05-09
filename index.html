@@ -2396,6 +2396,64 @@
             return true;
         }
 
+        function capitalizeWords(str) {
+            return str.replace(/\b[a-z]/g, char => char.toUpperCase())
+                      .replace(/([0-9])([a-z])/ig, (m, num, letter) => num + letter.toUpperCase());
+        }
+        
+        function handleNewItemNameInput(input) {
+            const rawName = input.value.trim();
+            const normalizedInputName = rawName.replace(/[^a-zA-Z0-9\u0980-\u09FF]/g, '').toLowerCase();
+            const resultsContainer = input.nextElementSibling;
+            resultsContainer.innerHTML = '';
+        
+            if (!normalizedInputName) {
+                resultsContainer.classList.remove('show');
+                return;
+            }
+        
+            const matches = allItems.filter(item => {
+                const normalizedExistingName = item.name.replace(/[^a-zA-Z0-9\u0980-\u09FF]/g, '').toLowerCase();
+                return normalizedExistingName.includes(normalizedInputName);
+            }).slice(0, 8);
+        
+            if (matches.length > 0) {
+                matches.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'custom-search-item';
+                    const isVariant = Array.isArray(item.quantity);
+                    const stockInfo = isVariant
+                        ? item.quantity.map(v => `${v.key}: ${toBengaliNumber(v.value)}`).join(', ')
+                        : `${toBengaliNumber(item.quantity)} ${item.unit || 'পিস'}`;
+                    
+                    itemDiv.innerHTML = `
+                        ${item.name}
+                        <small>সেকশন: ${item.section} (বর্তমান স্টক: ${stockInfo})</small>
+                    `;
+                    itemDiv.onclick = () => {
+                        input.value = item.name;
+                        const formCard = input.closest('.item-form-card');
+                        formCard.querySelector('.item-section').value = item.section;
+                        
+                        const unitInput = formCard.querySelector('.item-unit');
+                        if(unitInput) unitInput.value = item.unit || 'পিস';
+        
+                        const variantCheckbox = formCard.querySelector('.is-variant-checkbox');
+                        if (isVariant && !variantCheckbox.checked) {
+                            variantCheckbox.click();
+                        } else if (!isVariant && variantCheckbox.checked) {
+                            variantCheckbox.click();
+                        }
+                        resultsContainer.classList.remove('show');
+                    };
+                    resultsContainer.appendChild(itemDiv);
+                });
+                resultsContainer.classList.add('show');
+            } else {
+                resultsContainer.classList.remove('show');
+            }
+        }
+
         const toBengaliNumber = (enStr) => {
             if (typeof enStr !== 'string' && typeof enStr !== 'number') return enStr;
             const str = String(enStr);
@@ -7130,7 +7188,7 @@
         
                 formCard.innerHTML = `
                     <button class="remove-form-btn" onclick="this.parentElement.remove(); updateSaveButtonState();">×</button>
-                    <input type="text" class="item-name" autocomplete="off" placeholder="আইটেমের নাম" required>
+                    <div class="custom-search-container" style="width: 100%;">     <input type="text" class="item-name custom-search-input" autocomplete="off" placeholder="আইটেমের নাম" required oninput="handleNewItemNameInput(this)" onblur="this.value = capitalizeWords(this.value)">     <div class="custom-search-results"></div> </div>
                     <select class="item-section">${sectionOptions}</select>
                     
                     <!-- সাধারণ আইটেমের পরিমাণ -->
@@ -7261,7 +7319,7 @@
             return { key: key, name: key };
         }
         function saveAllItems() {
-          if (!securityCheck()) return;
+            if (!securityCheck()) return;
             const formCards = document.querySelectorAll('#multiItemFormsContainer .item-form-card');
             if (formCards.length === 0) {
                 showToast("প্রথমে একটি আইটেম ফর্ম যোগ করুন।", 'error');
@@ -7273,15 +7331,17 @@
                 ledger: JSON.parse(localStorage.getItem('ledger') || '[]')
             };
         
-            let itemsAddedCount = 0;
+            let itemsProcessedCount = 0;
             let errorOccurred = false;
             const itemsToSync = [];
+            const itemsToUpdate = [];
             const ledgerToSync = [];
         
             formCards.forEach(card => {
                 if (errorOccurred) return;
         
-                const name = card.querySelector('.item-name').value.trim();
+                const rawName = card.querySelector('.item-name').value.trim();
+                const name = rawName.replace(/\b[a-z]/g, char => char.toUpperCase()).replace(/([0-9])([a-z])/ig, (m, num, letter) => num + letter.toUpperCase());
                 const section = card.querySelector('.item-section').value;
                 const unitInput = card.querySelector('.item-unit');
                 const unit = unitInput ? unitInput.value.trim() || 'পিস' : 'পিস';
@@ -7293,12 +7353,13 @@
                     return;
                 }
         
-                let quantity;
+                let quantityToAdd;
                 let initialChange = 0;
                 let ledgerDetails = null;
+                let variantData = [];
         
                 if (isVariant) {
-                    quantity = [];
+                    quantityToAdd = [];
                     ledgerDetails = {};
                     const variantRows = card.querySelectorAll('.variant-rows-container > div');
                     if (variantRows.length === 0) {
@@ -7311,56 +7372,92 @@
                         const value = parseFloat(row.querySelector('.variant-quantity').value) || 0;
                         if (variantName) {
                             const normalized = normalizeVariantKey(variantName);
-                            quantity.push({ key: normalized.key, name: normalized.name, value: value });
+                            variantData.push({ key: normalized.key, name: normalized.name, value: value });
+                            quantityToAdd.push({ key: normalized.key, name: normalized.name, value: value });
                             initialChange += value;
                             if (value > 0) {
                                 ledgerDetails[normalized.key] = value;
                             }
                         }
                     });
-                    if (quantity.length === 0) {
+                    if (variantData.length === 0) {
                         showToast(`'${name}' এর জন্য ভ্যারিয়েন্টের নাম দিন।`, 'error');
                         errorOccurred = true;
                         return;
                     }
                 } else {
                     const quantityStr = card.querySelector('.item-quantity').value;
-                    quantity = parseFloat(quantityStr) || 0;
-                    initialChange = quantity;
+                    quantityToAdd = parseFloat(quantityStr) || 0;
+                    initialChange = quantityToAdd;
                 }
         
-                let existingItem = localData.items.find(i => i.name.toLowerCase() === name.toLowerCase() && i.section === section);
+                const normalizedNewName = name.replace(/[^a-zA-Z0-9\u0980-\u09FF]/g, '').toLowerCase();
+                let existingItem = localData.items.find(i => i.name.replace(/[^a-zA-Z0-9\u0980-\u09FF]/g, '').toLowerCase() === normalizedNewName);
+                
                 if (existingItem) {
-                    showToast(`'${name}' আইটেমটি এই সেকশনে আগে থেকেই আছে। স্টক আপডেট করুন।`, 'error');
-                    errorOccurred = true;
-                    return;
-                }
+                    const isExistingVariant = Array.isArray(existingItem.quantity);
+                    if (isVariant !== isExistingVariant) {
+                        showToast(`'${name}' আইটেমটি ইতিমধ্যে আছে, কিন্তু ভ্যারিয়েন্ট সেটিং মিলছে না।`, 'error');
+                        errorOccurred = true;
+                        return;
+                    }
         
-                const targetItemId = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                const newItem = { id: targetItemId, name, section, quantity, unit };
-                localData.items.push(newItem);
-                itemsToSync.push({ item: newItem, isNew: true });
+                    if (isVariant) {
+                        variantData.forEach(newVar => {
+                            const existingVar = existingItem.quantity.find(v => v.key === newVar.key);
+                            if (existingVar) {
+                                existingVar.value += newVar.value;
+                            } else {
+                                existingItem.quantity.push(newVar);
+                            }
+                        });
+                    } else {
+                        existingItem.quantity += quantityToAdd;
+                    }
         
-                if (initialChange > 0) {
-                    const ledgerEntry = {
-                        id: `ledger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                        itemId: targetItemId,
-                        itemName: name,
-                        change: initialChange,
-                        person: 'নতুন আইটেম',
-                        date: new Date().toISOString(),
-                        details: ledgerDetails,
-                        actionBy: getActionTakerName()
-                    };
-                    localData.ledger.push(ledgerEntry);
-                    ledgerToSync.push(ledgerEntry);
+                    itemsToUpdate.push(existingItem);
+        
+                    if (initialChange > 0) {
+                        const ledgerEntry = {
+                            id: `ledger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            itemId: existingItem.id,
+                            itemName: existingItem.name,
+                            change: initialChange,
+                            person: 'স্টক যুক্ত',
+                            date: new Date().toISOString(),
+                            details: ledgerDetails,
+                            actionBy: getActionTakerName()
+                        };
+                        localData.ledger.push(ledgerEntry);
+                        ledgerToSync.push(ledgerEntry);
+                    }
+                } else {
+                    const targetItemId = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    const newItem = { id: targetItemId, name, section, quantity: quantityToAdd, unit };
+                    localData.items.push(newItem);
+                    itemsToSync.push({ item: newItem, isNew: true });
+            
+                    if (initialChange > 0) {
+                        const ledgerEntry = {
+                            id: `ledger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            itemId: targetItemId,
+                            itemName: name,
+                            change: initialChange,
+                            person: 'নতুন আইটেম',
+                            date: new Date().toISOString(),
+                            details: ledgerDetails,
+                            actionBy: getActionTakerName()
+                        };
+                        localData.ledger.push(ledgerEntry);
+                        ledgerToSync.push(ledgerEntry);
+                    }
                 }
-                itemsAddedCount++;
+                itemsProcessedCount++;
             });
         
             if (errorOccurred) return;
         
-            if (itemsAddedCount > 0) {
+            if (itemsProcessedCount > 0) {
                 localStorage.setItem('items', JSON.stringify(localData.items));
                 localStorage.setItem('ledger', JSON.stringify(localData.ledger));
                 allItems = localData.items;
@@ -7368,10 +7465,14 @@
         
                 document.getElementById('multiItemFormsContainer').innerHTML = '';
                 closeModal('itemAddModal');
-                showToast(`${toBengaliNumber(itemsAddedCount)}টি আইটেম সফলভাবে সেভ হয়েছে।`);
+                showToast(`${toBengaliNumber(itemsProcessedCount)}টি আইটেম সফলভাবে সেভ/আপডেট হয়েছে।`);
+                
                 if (itemsToSync.length === 1) {
                     itemToHighlight = itemsToSync[0].item.id;
+                } else if (itemsToUpdate.length === 1) {
+                    itemToHighlight = itemsToUpdate[0].id;
                 }
+                
                 renderInventoryPage();
                 updateSlidingNotifications();
         
@@ -7381,6 +7482,10 @@
                     itemsToSync.forEach(syncInfo => {
                         const itemRef = dbPath.collection('items').doc(syncInfo.item.id);
                         batch.set(itemRef, syncInfo.item);
+                    });
+                    itemsToUpdate.forEach(updatedItem => {
+                        const itemRef = dbPath.collection('items').doc(updatedItem.id);
+                        batch.update(itemRef, { quantity: updatedItem.quantity });
                     });
                     ledgerToSync.forEach(entry => {
                         const ledgerRef = dbPath.collection('ledger').doc(entry.id);
