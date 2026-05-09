@@ -10559,8 +10559,8 @@
                 };
         
                 if (user) {
-               //   const isAllowed = await verifyDeviceLock(user);
-                     //     if (!isAllowed) return;
+                  const isAllowed = await verifyDeviceLock(user);
+                          if (!isAllowed) return;
                     runMainApp();
                 } else {
                     const hasLocalData = (localStorage.getItem('items') || '[]').length > 2 || (localStorage.getItem('sections') || '[]').length > 2;
